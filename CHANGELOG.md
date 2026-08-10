@@ -8,6 +8,8 @@
 - Added a self-contained portable replacement for source-machine dev-server safety references.
 - Added portable replacements for runtime memory roots, session/reset commands, project kickoff, writing preflight, and provider-specific model routing.
 - Added runtime-neutral capability linting and a one-source-per-capability rule so Claude and Codex inputs cannot become separate canonical libraries.
+- Added real-source capture guards for provider names, runtime invocation aliases, undeclared executable workflows, and provider-specific capability adapter assets.
+- Preserved folded and quoted capability descriptions through canonical capture and both runtime projections.
 - Added Claude and Codex projections that preserve unmanaged global instructions, project model-neutral routing, namespace capabilities, and render runtime-valid skill frontmatter.
 - Added exact content and module visibility in preview, preview-digest enforcement, transactional apply, verification, doctor, stale managed-asset cleanup, and drift-safe rollback.
 - Added a token-protected loopback onboarding interface and headless CLI.

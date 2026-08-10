@@ -14,9 +14,9 @@ This file is the prioritized release ledger for the free self-serve package.
 | Plan digest, target preflight, failure rollback, and explicit rollback | Transaction and CLI integration suites | Complete |
 | Loopback onboarding UI with per-process request token | Server integration suite | Complete |
 | Packed package installs and exposes `saddle` with scripts disabled | Packed-install suite | Complete |
-| Commit-pinned Git dependency installs in a clean npm consumer | Local `git+file` release gate at `a979407` | Complete |
-| Independent release review has no unresolved code P0 or P1 | Sol High review; 75-test rerun and focused manual reproductions | Complete |
-| First real transfer to a second computer passes apply, first-task continuity, doctor, and rollback | [First transfer](./FIRST-TRANSFER.md) | Not started |
+| Commit-pinned Git dependency installs in a clean npm consumer | Exact GitHub install at `71908d7` | Complete |
+| Independent release review has no unresolved code P0 or P1 | Sol High review plus real-source semantic canaries | Complete |
+| First real transfer to a second computer passes apply, first-task continuity, doctor, and rollback | Source capture and disposable destination pass; [destination checklist](./FIRST-TRANSFER.md) remains | In progress |
 
 ## P1 — required before public GitHub release
 
@@ -25,8 +25,8 @@ This file is the prioritized release ledger for the free self-serve package.
 | Choose the GitHub owner, final repository name, and visibility | Approved: public `elou/saddle-portable` |
 | Add the normalized `repository` field | Complete |
 | Create a signed or annotated `v0.1.0` tag after the first-transfer gate | Pending |
-| Run Node 20 and Node 26 CI on macOS, plus Node 26 on Linux | Workflow and direct-GitHub-install gate ready; first remote run pending |
-| Record package checksum and tarball file list in the release notes | Pending |
+| Run Node 20 and Node 26 CI on macOS, plus Node 26 on Linux | Complete at `71908d7`: [run 31348641637](https://github.com/elou/saddle-portable/actions/runs/31348641637) |
+| Record package checksum and tarball file list in the release notes | Pending at tag creation; the archive checksum cannot be embedded in the archive itself without changing it |
 | Confirm the unscoped npm name or select an owned scope before registry publication | `saddle-portable` returned `E404` on 2026-08-09. Ownership is not reserved. |
 
 ## P2 — after the first free release
@@ -43,8 +43,11 @@ The public package must ship with the README, onboarding, universal profile, pri
 
 ## Local release evidence
 
-- `npm test`: 75 passed.
+- `npm test`: 88 passed.
 - Packed consumer: installed with lifecycle scripts disabled, exposed the `saddle` executable, imported the public JavaScript API, and created a valid profile.
-- Pinned Git consumer: installed commit `a979407` through `git+file`, exposed the executable and public API, and created a valid profile. Hosted CI repeats this check against the exact GitHub commit.
-- Browser rehearsal: personal and restricted items required two unchecked destination confirmations; proposed content and runtime-valid capability frontmatter were visible; Claude and Codex doctor results were exact; rollback verified.
+- Pinned Git consumer: installed `github:elou/saddle-portable#71908d7`, exposed the executable and public API, and created a valid profile. Hosted CI repeated the exact-commit check on Node 20 and 26 for macOS and Node 26 for Linux.
+- Real-source browser canary: runtime-only commands, undeclared executable workflows, duplicate capability sources, and provider-specific capability assets stayed out of the universal profile. One neutral `CAPABILITY.md` projected to both runtimes with valid frontmatter.
+- Disposable destination: plan preview, apply, exact doctor for Claude and Codex, provider-asset absence, and rollback passed for transaction `4c1cff72-695b-476d-b1dd-896660630806`.
 - Independent review: fresh capability install, capability update and stale-asset removal, unsafe manifest rejection, applied-but-unverified recovery, and rollback reproductions passed with no unresolved code P0 or P1.
+
+The remaining P0 is behavioral evidence on the physical second computer: install, apply, first task, context-reset continuity, doctor, and rollback. Personalization is not included until the user selects specific personal sections and gives explicit consent.

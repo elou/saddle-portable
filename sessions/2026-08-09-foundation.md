@@ -84,3 +84,22 @@ Commit `a979407` adds a repeatable clean-consumer verifier to local development 
 Files changed for this gate: `.github/workflows/ci.yml`, `package.json`, `scripts/verify-github-install.mjs`, `docs/INSTALL.md`, `docs/SHIP-READINESS.md`, `AGENT-TASKS.md`, and this session record. The package source remains isolated from the existing Harness and Saddle repositories.
 
 Final local pass at `36d2837`: pinned Git install passed, 75 tests passed, the 29-file package dry-run passed, `git diff --check` passed, and the worktree was clean. No remote, pull request, release tag, or npm publication exists. Exact resume: obtain approval for the recommended public `elou/saddle-portable` repository, add its normalized package metadata, push this branch, open an unmerged draft pull request, and run hosted CI before the second-computer checklist.
+
+## Public candidate and real-source transfer rehearsal
+
+The public repository and unmerged draft PR now exist at `elou/saddle-portable`. Hosted CI passes on Node 20 and Node 26 for macOS and Node 26 for Linux, including an install from the exact GitHub commit.
+
+The first real-source onboarding rehearsal found defects that synthetic tests had missed. Test-first fixes now:
+
+- replace source runtime memory, server-safety, project-start, voice-preflight, durable-session, and provider-model instructions with neutral procedures;
+- exclude slash and dollar invocation aliases from universal capabilities and foundation guidance;
+- move instruction sections that depend on undeclared executables into Needs attention;
+- parse folded and quoted capability descriptions without malformed or double-escaped YAML;
+- prevent duplicate runtime copies from becoming separate canonical capabilities; and
+- exclude provider-specific adapter assets while retaining neutral capability references.
+
+At `71908d7`, the final nonpersonal canary selected the foundation plus `model-fit-rubric-gate`. The canonical bundle contained no source home path, runtime/provider name, runtime reset command, Roughdraft invocation, or provider adapter asset. A disposable destination previewed and applied the profile to Claude and Codex, doctor reported every artifact exact, and transaction `4c1cff72-695b-476d-b1dd-896660630806` rolled back completely.
+
+Final local verification: 88 tests passed; the 29-file package dry-run was 53.5 kB packed and 209.9 kB unpacked with SHA-1 `83cda56c2a39d1295521da1c4fcc351164c8396a`; exact GitHub install from `71908d7` exposed the executable and public API and created a profile. Hosted run `31348641637` passed.
+
+Remaining gate: obtain explicit consent for any personal sections, transfer the approved bundle to Toobie, and record install, apply, first-task continuity, context-reset continuity, doctor, and rollback evidence before tagging or merging `v0.1.0`.
