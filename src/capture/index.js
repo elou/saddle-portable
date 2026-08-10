@@ -18,6 +18,18 @@ Before starting a development server, inspect the project's dev command and conf
 
 For Next.js projects, also confirm that the Turbopack root is explicit before starting development.
 `;
+const PORTABLE_MEMORY_PROTOCOL = `## Session continuity
+
+At session start, read the current project dashboard and the most recent durable project notes before acting.
+
+After a material change, append the decision, evidence, current state, and one concrete next action to the active durable note.
+
+Before a context reset, compaction, branch, or handoff, save any chat-only artifacts, finalize the current checkpoint, and leave a resume pointer.
+
+After a context reset, reload the dashboard, curated context, and latest durable note before continuing.
+
+At session end, verify the work, make durable records internally consistent, and leave one concrete next action.
+`;
 
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 const stableId = (...parts) => `capture-${digest(parts.join('\0')).slice(0, 20)}`;
@@ -26,12 +38,12 @@ const slash = (value) => value.split(path.sep).join('/');
 function advisory(text, heading = '') {
   const title = heading.toLowerCase();
   if (/(personal|human|health|family|location)/.test(title)) return { kind: 'personal-context', sensitivity: 'personal', reason: 'The section heading suggests personal context; this advisory classification requires explicit consent.' };
-  if (/(model routing|subagents?|project|design|writing)/.test(title)) return { kind: 'project-standard', sensitivity: 'standard', reason: 'The section heading suggests a project-standard; this is an advisory classification.' };
-  if (/(session|memory|context|compact|resume|checkpoint|handover)/.test(title)) return { kind: 'session-continuity', sensitivity: 'standard', reason: 'The section heading suggests session continuity; this is an advisory classification.' };
-  if (/(server|dev safety|permission)/.test(title)) return { kind: 'operating-policy', sensitivity: 'standard', reason: 'The section heading suggests an operating policy; this is an advisory classification.' };
+  if (/(server|dev safety|memory cap|hard rule|permission)/.test(title)) return { kind: 'operating-policy', sensitivity: 'standard', reason: 'The section heading suggests an operating policy; this is an advisory classification.' };
+  if (/(model routing|subagents?|project|design|writing|de-?slop|voice|delivery orchestration|product conversations?|analytical discipline)/.test(title)) return { kind: 'project-standard', sensitivity: 'standard', reason: 'The section heading suggests a project-standard; this is an advisory classification.' };
+  if (/(memory protocol|session continuity|session (?:start|end|checkpoint)|context (?:reset|before|after)|compact|resume|checkpoint|handover|durable notes?)/.test(title)) return { kind: 'session-continuity', sensitivity: 'standard', reason: 'The section heading suggests session continuity; this is an advisory classification.' };
   const sample = text.toLowerCase();
   if (/(personal|human|health|family|location)/.test(sample)) return { kind: 'personal-context', sensitivity: 'personal', reason: 'Personal-context terms were detected; this advisory classification requires explicit consent.' };
-  if (/(session|memory|\bclear\b|compact|resume|pre[- ]?context|post[- ]?context|checkpoint|handover)/.test(sample)) return { kind: 'session-continuity', sensitivity: 'standard', reason: 'Session-continuity terms were detected; this is an advisory classification.' };
+  if (/(\bclear\b|compact|resume|pre[- ]?context|post[- ]?context|checkpoint|handover|durable notes?|session (?:start|end)|context reset)/.test(sample)) return { kind: 'session-continuity', sensitivity: 'standard', reason: 'Explicit continuity or reset terms were detected; this is an advisory classification.' };
   if (/(server|dev safety|permission)/.test(sample)) return { kind: 'operating-policy', sensitivity: 'standard', reason: 'Operating-policy terms were detected; this is an advisory classification.' };
   if (/(model routing|subagents?|project|design|writing)/.test(sample)) return { kind: 'project-standard', sensitivity: 'standard', reason: 'Project-standard terms were detected; this is an advisory classification.' };
   return { kind: 'operating-policy', sensitivity: 'standard', reason: 'No stronger heuristic matched; this is an advisory operating-policy classification.' };
@@ -112,12 +124,19 @@ function authoredSections(text) {
 function instructionCandidates(runtime, relative, text, forcedClassification) {
   return authoredSections(text).map((section) => {
     const classification = forcedClassification ?? advisory(section.text, section.heading);
-    const portableTransform = /dev(?:elopment)? server (?:safety|memory)|server safety/i.test(section.heading ?? '') &&
+    const portableTransform = /^memory protocol$/i.test((section.heading ?? '').trim()) &&
+      (TILDE_RUNTIME_PATH.test(section.text) || HOME_PATH.test(section.text))
+      ? 'memory-protocol-v1'
+      : /dev(?:elopment)? server (?:safety|memory)|server safety/i.test(section.heading ?? '') &&
       (TILDE_RUNTIME_PATH.test(section.text) || HOME_PATH.test(section.text))
       ? 'dev-server-safety-v1'
       : undefined;
-    const reason = denied(portableTransform ? PORTABLE_DEV_SAFETY : section.text, relative, section.heading);
-    return { id: stableId(runtime, 'instruction-section', relative, section.heading ?? 'introduction'), runtime, sourceType: 'instruction-section', source: relative, ...(section.heading ? { heading: section.heading } : {}), lineSpan: { start: section.startLine, end: section.endLine }, digest: digest(section.text), bytes: Buffer.byteLength(section.text), suggestedKind: classification.kind, suggestedSensitivity: classification.sensitivity, selectable: !reason, reasons: reason ? [reason] : [portableTransform ? 'advisory classification: source-machine dev-safety references will be replaced with a self-contained 2 GB process-tree policy.' : classification.reason], ...(portableTransform ? { portableTransform } : {}) };
+    const replacement = portableTransform === 'memory-protocol-v1' ? PORTABLE_MEMORY_PROTOCOL : portableTransform ? PORTABLE_DEV_SAFETY : section.text;
+    const reason = denied(replacement, relative, section.heading);
+    const transformReason = portableTransform === 'memory-protocol-v1'
+      ? 'advisory classification: source-runtime memory roots and commands will be replaced with self-contained session-continuity procedures.'
+      : portableTransform ? 'advisory classification: source-machine dev-safety references will be replaced with a self-contained 2 GB process-tree policy.' : classification.reason;
+    return { id: stableId(runtime, 'instruction-section', relative, section.heading ?? 'introduction'), runtime, sourceType: 'instruction-section', source: relative, ...(section.heading ? { heading: section.heading } : {}), lineSpan: { start: section.startLine, end: section.endLine }, digest: digest(section.text), bytes: Buffer.byteLength(section.text), suggestedKind: classification.kind, suggestedSensitivity: classification.sensitivity, selectable: !reason, reasons: reason ? [reason] : [transformReason], ...(portableTransform ? { portableTransform } : {}) };
   });
 }
 
@@ -225,6 +244,7 @@ export async function readCandidate(candidate, { runtimeRoot } = {}) {
     content = text;
   }
   if (typeof content !== 'string' || digest(content) !== candidate.digest) throw new Error('candidate changed after inventory');
+  if (candidate.portableTransform === 'memory-protocol-v1') content = PORTABLE_MEMORY_PROTOCOL;
   if (candidate.portableTransform === 'dev-server-safety-v1') content = PORTABLE_DEV_SAFETY;
   if (denied(content, candidate.source, candidate.heading)) throw new Error('candidate is no longer safe to read');
   return content;

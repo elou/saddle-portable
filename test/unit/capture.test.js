@@ -25,6 +25,45 @@ test('heading intent wins over ambiguous body verbs', async () => {
   assert.match(candidates[0].reasons[0], /heading/);
 });
 
+test('heading intent classifies operating and project standards before incidental body language', async () => {
+  const root = await runtime({
+    'AGENTS.md': `## HARD RULE — dev server memory cap
+Save a session note after every change.
+## De-Slop Before Voice
+Resume the writing check after a compact.
+## Delivery Orchestration (Draft)
+Use a session checkpoint before handoff.
+## Product Conversations — talk like a PM
+Keep continuity notes concise.
+## Analytical Discipline
+Record the session evidence.
+`,
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'codex', runtimeRoot: root });
+  assert.deepEqual(candidates.map((candidate) => candidate.suggestedKind), [
+    'operating-policy', 'project-standard', 'project-standard', 'project-standard', 'project-standard',
+  ]);
+});
+
+test('replaces a runtime Memory Protocol with self-contained neutral continuity procedures', async () => {
+  const root = await runtime({
+    'CLAUDE.md': `## Memory Protocol
+Read ~/.claude/memory/projects/example/memory.md and the latest session note at session start.
+Before /clear, /compact, /resume, or /branch, run /exit-check and write to ~/.claude/memory/projects/example/session-notes/.
+`,
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot: root });
+  const memory = candidates[0];
+  assert.equal(memory.selectable, true);
+  assert.equal(memory.suggestedKind, 'session-continuity');
+  assert.equal(memory.portableTransform, 'memory-protocol-v1');
+  const content = await readCandidate(memory, { runtimeRoot: root });
+  assert.match(content, /session start/i);
+  assert.match(content, /before a context reset/i);
+  assert.match(content, /session end/i);
+  assert.doesNotMatch(content, /\.claude|\/clear|\/compact|\/resume|\/branch|exit-check/i);
+});
+
 test('inventories capability assets and marks scripts restricted', async () => {
   const root = await runtime({ 'skills/example/SKILL.md': '# Example\n', 'skills/example/references/guide.md': 'Guide\n', 'skills/example/scripts/check.sh': '#!/bin/sh\nexit 0\n' });
   const { candidates } = await inventoryRuntimeSources({ runtime: 'codex', runtimeRoot: root });
