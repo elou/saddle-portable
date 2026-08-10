@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import { inventoryRuntimeSources } from '../../src/capture/index.js';
 import * as claude from '../../src/adapters/claude.js';
+import * as codex from '../../src/adapters/codex.js';
 import { createProfileFromCandidates } from '../../src/onboarding/profile-builder.js';
 import { loadProfile } from '../../src/profile/index.js';
 
@@ -14,7 +15,7 @@ test('selected runtime sections and skills become one valid neutral profile', as
   const runtimeRoot = path.join(root, '.claude');
   await mkdir(path.join(runtimeRoot, 'skills', 'review', 'scripts'), { recursive: true });
   await writeFile(path.join(runtimeRoot, 'CLAUDE.md'), '# Global\n\n## Dev server safety\nCap the complete process tree.\n\n## Session notes\nSave before compact and reload after resume.\n');
-  await writeFile(path.join(runtimeRoot, 'skills', 'review', 'SKILL.md'), '---\nname: review\ndescription: >\n  Check a result against its\n  acceptance criteria.\n---\n# Review\n\nCheck the result.\n');
+  await writeFile(path.join(runtimeRoot, 'skills', 'review', 'SKILL.md'), '---\nname: review\ndescription: "Check a \\"quoted\\" result."\n---\n# Review\n\nCheck the result.\n');
   await writeFile(path.join(runtimeRoot, 'skills', 'review', 'scripts', 'check.sh'), '#!/bin/sh\nexit 0\n');
   const inventory = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot });
   const outputRoot = path.join(root, 'portable');
@@ -36,7 +37,8 @@ test('selected runtime sections and skills become one valid neutral profile', as
   assert.deepEqual(capability.assets.map((asset) => asset.kind), ['script']);
   const capabilityContent = await readFile(path.join(outputRoot, capability.source), 'utf8');
   assert.match(capabilityContent, /Imported capability digest/);
-  assert.match(capabilityContent, /description: "Check a result against its acceptance criteria\."/);
+  assert.match(capabilityContent, /description: "Check a \\"quoted\\" result\."/);
+  assert.doesNotMatch(capabilityContent, /\\\\"quoted\\\\"/);
   assert.doesNotMatch(capabilityContent, /description: ">"/);
   assert.doesNotMatch(capabilityContent, /claude|codex/i);
   assert.match(await readFile(path.join(outputRoot, 'instructions/session-continuity.md'), 'utf8'), /Before context reset/);
@@ -44,7 +46,12 @@ test('selected runtime sections and skills become one valid neutral profile', as
   await mkdir(targetRoot);
   const projection = await claude.plan(loaded, { targetRoot });
   const skill = projection.operations.find((operation) => operation.target === 'skills/saddle-review/SKILL.md');
-  assert.match(skill.content, /^---\nname: saddle-review\ndescription: "Check a result against its acceptance criteria\."\n---\n<!-- Saddle managed projection/);
+  assert.match(skill.content, /^---\nname: saddle-review\ndescription: "Check a \\"quoted\\" result\."\n---\n<!-- Saddle managed projection/);
+  assert.doesNotMatch(skill.content, /\\\\"quoted\\\\"/);
+  const codexProjection = await codex.plan(loaded, { targetRoot: path.join(root, 'destination-codex') });
+  const codexSkill = codexProjection.operations.find((operation) => operation.target === 'skills/saddle-review/SKILL.md');
+  assert.match(codexSkill.content, /^---\nname: saddle-review\ndescription: "Check a \\"quoted\\" result\."\n---\n<!-- Saddle managed projection/);
+  assert.doesNotMatch(codexSkill.content, /\\\\"quoted\\\\"/);
 });
 
 test('capture rereads candidates, rejects drift, and leaves no partial output', async () => {

@@ -281,7 +281,9 @@ function frontmatterDescription(frontmatter, fallback) {
     }
     value = folded ? parts.join(' ') : parts.join('\n');
   }
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+  if (value.startsWith('"') && value.endsWith('"')) {
+    try { value = JSON.parse(value); } catch { value = value.slice(1, -1); }
+  } else if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
   return value.trim() || fallback;
 }
 

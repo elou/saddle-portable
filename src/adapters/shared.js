@@ -51,11 +51,15 @@ function parseCapabilityDocument(content) {
   if (!match) return { description: '', body: content };
   const descriptionLine = /^description:\s*(.+?)\s*$/m.exec(match[1]);
   const rawDescription = descriptionLine?.[1] ?? '';
-  let description = rawDescription;
-  if ((description.startsWith('"') && description.endsWith('"')) || (description.startsWith("'") && description.endsWith("'"))) {
-    description = description.slice(1, -1);
-  }
+  const description = decodeDescription(rawDescription);
   return { description, body: content.slice(match[0].length) };
+}
+
+function decodeDescription(value) {
+  if (value.startsWith('"') && value.endsWith('"')) {
+    try { return JSON.parse(value); } catch { return value.slice(1, -1); }
+  }
+  return value.startsWith("'") && value.endsWith("'") ? value.slice(1, -1) : value;
 }
 
 export function assertTargetRoot(context) {
