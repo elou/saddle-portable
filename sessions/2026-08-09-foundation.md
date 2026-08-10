@@ -80,3 +80,7 @@ Remaining release gates are the GitHub owner/repository decision, first remote C
 ## Direct Git installation gate
 
 Commit `a979407` adds a repeatable clean-consumer verifier to local development and hosted CI. A pinned `git+file` install of that commit exposed the `saddle` executable and public JavaScript API and created a valid neutral profile. This closes the locally testable Git transport risk; the same verifier still needs to pass against the hosted GitHub commit after repository creation.
+
+Files changed for this gate: `.github/workflows/ci.yml`, `package.json`, `scripts/verify-github-install.mjs`, `docs/INSTALL.md`, `docs/SHIP-READINESS.md`, `AGENT-TASKS.md`, and this session record. The package source remains isolated from the existing Harness and Saddle repositories.
+
+Final local pass at `36d2837`: pinned Git install passed, 75 tests passed, the 29-file package dry-run passed, `git diff --check` passed, and the worktree was clean. No remote, pull request, release tag, or npm publication exists. Exact resume: obtain approval for the recommended public `elou/saddle-portable` repository, add its normalized package metadata, push this branch, open an unmerged draft pull request, and run hosted CI before the second-computer checklist.
