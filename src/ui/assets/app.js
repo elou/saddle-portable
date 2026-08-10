@@ -72,7 +72,7 @@ async function inventory() {
   try {
     state.runtimes = selectedRuntimes();
     const result = await api('/api/inventory', { targetRoot: state.targetRoot, runtimes: state.runtimes });
-    container.replaceChildren(...result.inventories.map(renderInventoryGroup));
+    container.replaceChildren(renderInventory(result.inventories));
   } catch (error) {
     renderError(container, error.message);
   }
@@ -82,7 +82,7 @@ async function captureProfile() {
   const outputRoot = document.querySelector('#capture-output').value.trim();
   const name = document.querySelector('#profile-name').value.trim();
   const id = document.querySelector('#profile-id').value.trim();
-  const selections = [...document.querySelectorAll('input[name="candidate"]:checked')]
+  const selections = [...document.querySelectorAll('.candidate-selection:checked')]
     .map((input) => ({ runtime: input.dataset.runtime, id: input.value }));
   if (!outputRoot || !name || !id) throw new Error('Profile name, id, and save location are required.');
   if (!selections.length) throw new Error('Select at least one authored item to capture.');
@@ -106,35 +106,104 @@ function profileMode() {
   return document.querySelector('input[name="profile-mode"]:checked').value;
 }
 
-function renderInventoryGroup(inventoryResult) {
-  const group = document.createElement('section'); group.className = 'candidate-group';
-  const heading = document.createElement('h2');
-  heading.textContent = `${inventoryResult.runtime === 'claude' ? 'Claude' : 'Codex'} · ${inventoryResult.candidates.length} candidates`;
-  group.append(heading);
-  if (!inventoryResult.candidates.length) {
-    const empty = document.createElement('p'); empty.className = 'candidate-reason'; empty.textContent = 'No authored guidance found.'; group.append(empty);
-  }
-  inventoryResult.candidates.forEach((candidate) => group.append(renderCandidate(candidate)));
-  inventoryResult.warnings.forEach((warning) => {
-    const note = document.createElement('p'); note.className = 'candidate-reason'; note.textContent = `Skipped ${warning.source}: ${warning.reason}`; group.append(note);
-  });
-  return group;
+function renderInventory(inventories) {
+  const wrapper = document.createElement('div');
+  const entries = inventories.flatMap((inventoryResult) => inventoryResult.candidates.map((candidate) => ({ candidate, runtime: inventoryResult.runtime })));
+  const foundation = entries.filter(({ candidate }) => candidate.selectable && candidate.sourceType === 'instruction-section' && candidate.suggestedSensitivity === 'standard');
+  const capabilities = entries.filter(({ candidate }) => candidate.sourceType === 'capability' && candidate.selectable);
+  const personal = entries.filter(({ candidate }) => candidate.selectable && candidate.suggestedSensitivity === 'personal');
+  const attention = entries.filter(({ candidate }) => !candidate.selectable || (candidate.suggestedSensitivity === 'restricted' && candidate.sourceType !== 'capability'));
+
+  wrapper.append(renderCandidateSection('Recommended foundation', 'Portable instruction sections selected by default.', foundation, { checked: true }));
+  wrapper.append(renderCapabilities(capabilities));
+  wrapper.append(renderCandidateSection('Personalization', 'Personal context stays optional and requires consent before it can be applied.', personal));
+
+  const warnings = inventories.flatMap((inventoryResult) => inventoryResult.warnings.map((warning) => ({ ...warning, runtime: inventoryResult.runtime })));
+  wrapper.append(renderNeedsAttention(attention, warnings));
+  return wrapper;
 }
 
-function renderCandidate(candidate) {
+function renderCandidateSection(title, copy, entries, options = {}) {
+  const section = document.createElement('section'); section.className = 'candidate-group';
+  const heading = document.createElement('h2'); heading.textContent = title;
+  const explanation = document.createElement('p'); explanation.className = 'candidate-section-copy'; explanation.textContent = copy;
+  section.append(heading, explanation);
+  if (!entries.length) {
+    const empty = document.createElement('p'); empty.className = 'candidate-reason'; empty.textContent = 'Nothing found.'; section.append(empty);
+  }
+  entries.forEach(({ candidate }) => section.append(renderCandidate(candidate, options)));
+  return section;
+}
+
+function renderCapabilities(entries) {
+  const section = document.createElement('section'); section.className = 'candidate-group';
+  const heading = document.createElement('h2'); heading.textContent = 'Optional capabilities';
+  const explanation = document.createElement('p'); explanation.className = 'candidate-section-copy'; explanation.textContent = 'Choose a source for each capability. One universal capability will project to every selected runtime.';
+  section.append(heading, explanation);
+  if (!entries.length) {
+    const empty = document.createElement('p'); empty.className = 'candidate-reason'; empty.textContent = 'No portable capabilities found.'; section.append(empty);
+    return section;
+  }
+  const groups = new Map();
+  for (const entry of entries) {
+    const name = canonicalCapabilityName(entry.candidate);
+    groups.set(name, [...(groups.get(name) ?? []), entry]);
+  }
+  for (const [name, candidates] of groups) {
+    const group = document.createElement('fieldset'); group.className = 'capability-choice';
+    const legend = document.createElement('legend'); legend.textContent = name;
+    group.append(legend);
+    candidates.forEach(({ candidate }) => group.append(renderCandidate(candidate, {
+      type: 'radio', name: `capability-${slug(name)}`,
+    })));
+    section.append(group);
+  }
+  return section;
+}
+
+function renderNeedsAttention(entries, warnings) {
+  const details = document.createElement('details'); details.className = 'candidate-group needs-attention';
+  const summary = document.createElement('summary'); summary.textContent = `Needs attention · ${entries.length + warnings.length}`;
+  const copy = document.createElement('p'); copy.className = 'candidate-section-copy'; copy.textContent = 'These items are excluded, restricted instruction sections, or need review before capture.';
+  details.append(summary, copy);
+  if (!entries.length && !warnings.length) {
+    const empty = document.createElement('p'); empty.className = 'candidate-reason'; empty.textContent = 'Nothing needs review.'; details.append(empty);
+  }
+  entries.forEach(({ candidate }) => details.append(renderCandidate(candidate)));
+  warnings.forEach((warning) => {
+    const note = document.createElement('p'); note.className = 'candidate-reason';
+    note.textContent = `Skipped ${runtimeName(warning.runtime)} · ${warning.source}: ${warning.reason}`;
+    details.append(note);
+  });
+  return details;
+}
+
+function renderCandidate(candidate, { type = 'checkbox', name = 'candidate', checked = false } = {}) {
   const label = document.createElement('label'); label.className = 'candidate';
   const input = document.createElement('input');
-  input.type = 'checkbox'; input.name = 'candidate'; input.value = candidate.id; input.dataset.runtime = candidate.runtime;
+  input.type = type; input.name = name; input.value = candidate.id; input.dataset.runtime = candidate.runtime; input.className = 'candidate-selection';
   input.disabled = !candidate.selectable;
-  input.checked = candidate.selectable && candidate.suggestedSensitivity === 'standard' && candidate.sourceType === 'instruction-section';
+  input.checked = checked && candidate.selectable;
   const titleElement = document.createElement('span'); titleElement.className = 'candidate-title';
-  titleElement.textContent = candidate.heading ?? (candidate.sourceType === 'capability' ? candidate.source.split('/').at(-2) : 'Introduction');
+  titleElement.textContent = candidate.heading ?? (candidate.sourceType === 'capability' ? canonicalCapabilityName(candidate) : 'Introduction');
   const tag = document.createElement('span'); tag.className = `tag tag-${candidate.suggestedSensitivity}`;
-  tag.textContent = candidate.selectable ? `${candidate.suggestedKind} · ${candidate.suggestedSensitivity}` : 'excluded';
+  tag.textContent = candidate.selectable ? `${runtimeName(candidate.runtime)} · ${candidate.suggestedKind} · ${candidate.suggestedSensitivity}` : 'excluded';
   const source = document.createElement('span'); source.className = 'candidate-source'; source.textContent = candidate.source;
   const reason = document.createElement('span'); reason.className = 'candidate-reason'; reason.textContent = candidate.reasons.join(' ');
   label.append(input, titleElement, tag, source, reason);
   return label;
+}
+
+function canonicalCapabilityName(candidate) {
+  return candidate.source.split('/').at(-2) ?? candidate.source;
+}
+
+function runtimeName(runtime) {
+  return runtime === 'claude' ? 'Claude' : 'Codex';
+}
+
+function slug(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 async function apply() {

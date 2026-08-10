@@ -58,7 +58,7 @@ dd { margin: 0; color: var(--muted); }
 .field-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .field { inline-size: 100%; min-block-size: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); background: var(--surface); }
 .field:hover { border-color: var(--muted); }
-.field:focus-visible, .button:focus-visible, input[type="checkbox"]:focus-visible { outline: 3px solid color-mix(in oklch, var(--focus) 45%, transparent); outline-offset: 2px; }
+.field:focus-visible, .button:focus-visible, input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible { outline: 3px solid color-mix(in oklch, var(--focus) 45%, transparent); outline-offset: 2px; }
 
 .runtime-choice { border: 0; padding: 0; margin: 28px 0 0; }
 .runtime-choice legend { font-size: 13px; font-weight: 700; margin-block-end: 8px; }
@@ -75,6 +75,7 @@ dd { margin: 0; color: var(--muted); }
 .candidate-list { margin-block-start: 24px; }
 .candidate-group { border-block-start: 1px solid var(--line); }
 .candidate-group h2 { margin: 20px 0 8px; font: 700 13px/1.4 Inter, ui-sans-serif, sans-serif; }
+.candidate-section-copy { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
 .candidate { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px 12px; align-items: start; padding-block: 12px; border-block-start: 1px solid color-mix(in oklch, var(--line) 70%, transparent); }
 .candidate input { inline-size: 18px; block-size: 18px; margin-block-start: 2px; accent-color: var(--accent); }
 .candidate-title { font-weight: 650; }
@@ -82,6 +83,11 @@ dd { margin: 0; color: var(--muted); }
 .candidate-source { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 .tag { border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .tag-personal, .tag-restricted { color: var(--danger); border-color: color-mix(in oklch, var(--danger) 35%, var(--line)); }
+.capability-choice { margin: 0; padding: 0; border: 0; }
+.capability-choice legend { padding: 14px 0 2px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.needs-attention { margin-block-start: 16px; padding-block: 16px 0; }
+.needs-attention summary { cursor: pointer; color: var(--warning); font-size: 13px; font-weight: 700; }
+.needs-attention[open] summary { margin-block-end: 12px; }
 
 .result-list { margin-block-start: 16px; }
 .result-row, .operation { display: grid; grid-template-columns: 12px 1fr auto; gap: 12px; align-items: baseline; padding-block: 12px; border-block-start: 1px solid var(--line); }

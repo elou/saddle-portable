@@ -37,6 +37,7 @@ export async function createProfileFromCandidates({
   if (!Array.isArray(sources)) throw new TypeError('sources must be an array.');
   if (!path.isAbsolute(outputRoot)) throw new TypeError('outputRoot must be absolute.');
   const profileMetadata = validateProfileMetadata(profile);
+  rejectCanonicalCapabilityCollisions(sources);
   await requireAbsent(outputRoot);
 
   const selected = [];
@@ -105,11 +106,8 @@ export async function createProfileFromCandidates({
       }));
     }
 
-    const capabilityIds = new Set();
     for (const item of selected.filter((entry) => entry.candidate.sourceType === 'capability')) {
-      const base = slug(path.basename(path.dirname(item.candidate.source)));
-      const capabilityId = uniqueId(base, item.candidate.runtime, capabilityIds);
-      capabilityIds.add(capabilityId);
+      const capabilityId = canonicalCapabilityId(item.candidate);
       const directory = `capabilities/${capabilityId}`;
       const assets = [];
       for (const asset of item.assets.sort((a, b) => a.path.localeCompare(b.path))) {
@@ -208,12 +206,24 @@ function slug(value) {
   return result;
 }
 
-function uniqueId(base, runtime, used) {
-  if (!used.has(base)) return base;
-  let candidate = `${base}-${runtime}`;
-  let number = 2;
-  while (used.has(candidate)) candidate = `${base}-${runtime}-${number++}`;
-  return candidate;
+function canonicalCapabilityId(candidate) {
+  return slug(path.basename(path.dirname(candidate.source)));
+}
+
+function rejectCanonicalCapabilityCollisions(sources) {
+  const byCapabilityId = new Map();
+  for (const source of sources) {
+    if (source?.candidate?.sourceType !== 'capability') continue;
+    const id = canonicalCapabilityId(source.candidate);
+    const collisions = byCapabilityId.get(id) ?? [];
+    collisions.push(source.candidate);
+    byCapabilityId.set(id, collisions);
+  }
+  for (const [id, candidates] of byCapabilityId) {
+    if (candidates.length < 2) continue;
+    const sourcesList = candidates.map((candidate) => `${candidate.runtime}:${candidate.source}`).join(', ');
+    throw new Error(`Choose one source for universal capability "${id}". Selected sources collide: ${sourcesList}. Saddle will project that one CAPABILITY.md to every selected runtime.`);
+  }
 }
 
 function title(value) {

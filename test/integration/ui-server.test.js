@@ -80,6 +80,34 @@ test('setup server inventories trusted candidates and creates a neutral profile 
   assert.ok(manifest.modules.some((module) => module.kind === 'session-continuity'));
 });
 
+test('setup server rejects duplicate canonical capability selections without creating a profile', async (t) => {
+  const setup = createSetupServer({ token: 'collision-token' });
+  const listener = await setup.listen();
+  t.after(() => setup.close());
+  const root = await mkdtemp(path.join(os.tmpdir(), 'saddle-ui-collision-'));
+  for (const runtime of ['claude', 'codex']) {
+    await mkdir(path.join(root, `.${runtime}`, 'skills', 'shared-skill'), { recursive: true });
+    await writeFile(path.join(root, `.${runtime}`, 'skills', 'shared-skill', 'SKILL.md'), '# Shared skill\n');
+  }
+  const request = (endpoint, body) => fetch(`http://127.0.0.1:${listener.port}${endpoint}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-saddle-token': listener.token },
+    body: JSON.stringify(body),
+  });
+  const inventoryResponse = await request('/api/inventory', { targetRoot: root, runtimes: ['claude', 'codex'] });
+  const inventory = await inventoryResponse.json();
+  const response = await request('/api/capture', {
+    targetRoot: root,
+    outputRoot: path.join(root, 'portable'),
+    profile: { id: 'collision-test', name: 'Collision test' },
+    selections: inventory.inventories.map((runtime) => ({ runtime: runtime.runtime, id: runtime.candidates[0].id })),
+  });
+
+  assert.equal(response.status, 422);
+  assert.match((await response.json()).error, /choose one source.*shared-skill/i);
+  await assert.rejects(readFile(path.join(root, 'portable', 'saddle.profile.json')), { code: 'ENOENT' });
+});
+
 test('setup server requires destination consent before applying personal context', async (t) => {
   const setup = createSetupServer({ token: 'consent-token' });
   const listener = await setup.listen();

@@ -59,3 +59,28 @@ test('capture rereads candidates, rejects drift, and leaves no partial output', 
   }), /changed/);
   await assert.rejects(stat(outputRoot), { code: 'ENOENT' });
 });
+
+test('capture rejects selected capabilities with the same canonical skill directory before writing', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'saddle-capture-collision-'));
+  const claudeRoot = path.join(root, '.claude');
+  const codexRoot = path.join(root, '.codex');
+  for (const runtimeRoot of [claudeRoot, codexRoot]) {
+    await mkdir(path.join(runtimeRoot, 'skills', 'writing-analyze-best-practices'), { recursive: true });
+    await writeFile(path.join(runtimeRoot, 'skills', 'writing-analyze-best-practices', 'SKILL.md'), '# Writing analysis\n');
+  }
+  const [claude, codex] = await Promise.all([
+    inventoryRuntimeSources({ runtime: 'claude', runtimeRoot: claudeRoot }),
+    inventoryRuntimeSources({ runtime: 'codex', runtimeRoot: codexRoot }),
+  ]);
+  const outputRoot = path.join(root, 'portable');
+
+  await assert.rejects(createProfileFromCandidates({
+    sources: [
+      { runtimeRoot: claudeRoot, candidate: claude.candidates[0] },
+      { runtimeRoot: codexRoot, candidate: codex.candidates[0] },
+    ],
+    outputRoot,
+    profile: { id: 'collision-test', name: 'Collision test' },
+  }), /choose one source.*writing-analyze-best-practices/i);
+  await assert.rejects(stat(outputRoot), { code: 'ENOENT' });
+});
