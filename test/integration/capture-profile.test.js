@@ -34,7 +34,9 @@ test('selected runtime sections and skills become one valid neutral profile', as
   const capability = loaded.modules.find((module) => module.kind === 'capability');
   assert.equal(capability.sensitivity, 'restricted');
   assert.deepEqual(capability.assets.map((asset) => asset.kind), ['script']);
-  assert.match(await readFile(path.join(outputRoot, capability.source), 'utf8'), /Captured from claude/);
+  const capabilityContent = await readFile(path.join(outputRoot, capability.source), 'utf8');
+  assert.match(capabilityContent, /Imported capability digest/);
+  assert.doesNotMatch(capabilityContent, /claude|codex/i);
   assert.match(await readFile(path.join(outputRoot, 'instructions/session-continuity.md'), 'utf8'), /Before context reset/);
   const targetRoot = path.join(root, 'destination-claude');
   await mkdir(targetRoot);
@@ -83,4 +85,26 @@ test('capture rejects selected capabilities with the same canonical skill direct
     profile: { id: 'collision-test', name: 'Collision test' },
   }), /choose one source.*writing-analyze-best-practices/i);
   await assert.rejects(stat(outputRoot), { code: 'ENOENT' });
+});
+
+test('captured provider routing becomes structured and model-neutral', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'saddle-routing-capture-'));
+  const runtimeRoot = path.join(root, '.claude');
+  await mkdir(runtimeRoot, { recursive: true });
+  await writeFile(path.join(runtimeRoot, 'CLAUDE.md'), `## Sub-Agent Model Routing
+Use Haiku for file checks, Sonnet for synthesis, and Opus or Claude Code for architecture through the Agent tool.
+`);
+  const inventory = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot });
+  const routing = inventory.candidates[0];
+  const outputRoot = path.join(root, 'portable');
+  await createProfileFromCandidates({
+    sources: [{ runtimeRoot, candidate: routing }],
+    outputRoot,
+    profile: { id: 'neutral-routing', name: 'Neutral routing' },
+  });
+  const manifest = JSON.parse(await readFile(path.join(outputRoot, 'saddle.profile.json'), 'utf8'));
+  assert.ok(manifest.routing.routes.length >= 3);
+  assert.equal(manifest.routing.routes.every((route) => !Object.hasOwn(route, 'model')), true);
+  const standards = await readFile(path.join(outputRoot, 'instructions/project-standard.md'), 'utf8');
+  assert.doesNotMatch(standards, /Claude|Codex|Haiku|Sonnet|Opus|Agent tool/i);
 });

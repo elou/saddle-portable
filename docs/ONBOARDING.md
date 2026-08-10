@@ -31,15 +31,22 @@ Offer these items in this order:
 7. Canonical `human.md` personal context only when the user selects each offered section.
 8. Integration declarations without credentials or trust state.
 
-The first six categories can improve the first task on the destination computer. Personal context and integrations do not belong in the default selection.
+The first six categories can improve the first task on the destination computer. Personal context and integrations do not belong in the default selection. No capability is required for setup, and capabilities remain unchecked until the user chooses a workflow they use.
 
 Saddle transfers continuity procedures, not session history. It does not inventory project session notes automatically. Copy or reconnect a project's durable dashboard and notes separately when that project must resume on the destination computer.
 
-When a dev-server safety section points to a source-machine Claude or Codex path, Saddle replaces that section with a self-contained portable policy. The replacement preserves the 2 GB process-tree cap, the requirement to stop before running an uncapped server, and the Next.js Turbopack-root audit. Other unresolved runtime-home references are excluded instead of producing broken destination instructions.
+Saddle applies narrowly defined portable replacements when the intent is clear:
+
+- dev-server references become a self-contained 2 GB process-tree policy with the Next.js Turbopack-root audit;
+- memory roots and session commands become neutral start, checkpoint, pre-reset, post-reset, and session-end procedures;
+- provider model names become low, balanced, and frontier capability tiers with explicit escalation conditions; and
+- runtime commands for project kickoff, writing preflight, and durable session capture become self-contained procedures.
+
+Other unresolved runtime-home references are excluded instead of producing broken destination instructions.
 
 ## Default selection
 
-Saddle preselects selectable standard instruction sections. It does not preselect personal context, restricted content, or capabilities that include scripts. Excluded candidates remain visible with a reason when the inventory can safely describe them.
+Saddle preselects selectable standard instruction sections. It does not preselect personal context, restricted content, or any capability. Selectable capabilities are optional; when Claude and Codex both contain the same logical capability, the user can choose one source or leave it out. Capabilities containing provider names, runtime-specific tools, or runtime commands remain under **Needs attention** until they are rewritten as a neutral `CAPABILITY.md`. Excluded candidates remain visible with a reason when the inventory can safely describe them.
 
 Selecting an item approves profile creation only. It does not approve runtime permission changes or script execution.
 

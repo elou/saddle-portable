@@ -138,7 +138,7 @@ function renderCandidateSection(title, copy, entries, options = {}) {
 function renderCapabilities(entries) {
   const section = document.createElement('section'); section.className = 'candidate-group';
   const heading = document.createElement('h2'); heading.textContent = 'Optional capabilities';
-  const explanation = document.createElement('p'); explanation.className = 'candidate-section-copy'; explanation.textContent = 'Choose a source for each capability. One universal capability will project to every selected runtime.';
+  const explanation = document.createElement('p'); explanation.className = 'candidate-section-copy'; explanation.textContent = 'No capability is required for setup. Choose only portable workflows you use; one universal capability will project to every selected runtime.';
   section.append(heading, explanation);
   if (!entries.length) {
     const empty = document.createElement('p'); empty.className = 'candidate-reason'; empty.textContent = 'No portable capabilities found.'; section.append(empty);
@@ -146,19 +146,33 @@ function renderCapabilities(entries) {
   }
   const groups = new Map();
   for (const entry of entries) {
-    const name = canonicalCapabilityName(entry.candidate);
-    groups.set(name, [...(groups.get(name) ?? []), entry]);
+    const id = slug(canonicalCapabilityName(entry.candidate));
+    groups.set(id, [...(groups.get(id) ?? []), entry]);
   }
-  for (const [name, candidates] of groups) {
+  for (const [id, candidates] of groups) {
     const group = document.createElement('fieldset'); group.className = 'capability-choice';
-    const legend = document.createElement('legend'); legend.textContent = name;
+    const legend = document.createElement('legend'); legend.textContent = id;
     group.append(legend);
-    candidates.forEach(({ candidate }) => group.append(renderCandidate(candidate, {
-      type: 'radio', name: `capability-${slug(name)}`,
-    })));
+    if (candidates.length === 1) {
+      group.append(renderCandidate(candidates[0].candidate));
+    } else {
+      group.append(renderCapabilitySkipChoice(id));
+      candidates.forEach(({ candidate }) => group.append(renderCandidate(candidate, {
+        type: 'radio', name: `capability-${id}`,
+      })));
+    }
     section.append(group);
   }
   return section;
+}
+
+function renderCapabilitySkipChoice(id) {
+  const label = document.createElement('label'); label.className = 'candidate';
+  const input = document.createElement('input'); input.type = 'radio'; input.name = `capability-${id}`; input.checked = true;
+  const title = document.createElement('span'); title.className = 'candidate-title'; title.textContent = 'Do not include';
+  const detail = document.createElement('span'); detail.className = 'candidate-reason'; detail.textContent = 'Keep this universal capability out of the profile.';
+  label.append(input, title, detail);
+  return label;
 }
 
 function renderNeedsAttention(entries, warnings) {

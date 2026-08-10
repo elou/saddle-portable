@@ -49,11 +49,11 @@ Routing stores capability requirements instead of provider model names. A route 
 
 ## Capabilities
 
-Write a universal capability in `CAPABILITY.md`. Describe its inputs, outputs, constraints, and verification without naming a runtime unless the behavior requires one.
+Write a universal capability in `CAPABILITY.md`. Describe its inputs, outputs, constraints, and verification without provider names, runtime-specific tools, or runtime commands. Version `0.1` marks a captured skill that contains those details as **Needs attention** instead of renaming it and claiming it is universal.
 
 List every reference, script, or asset in the capability module. Each asset needs a relative path, kind, and SHA-256 digest. Scripts are text-only in version `0.1`, remain inert during every Saddle operation, and make the capability restricted.
 
-Adapters can rename `CAPABILITY.md` to a runtime entrypoint such as `SKILL.md`. Do not maintain separate Claude and Codex source copies.
+Adapters can rename `CAPABILITY.md` to a runtime entrypoint such as `SKILL.md`. Do not maintain separate Claude and Codex source copies. If both source runtimes offer the same capability id, onboarding requires one source choice and profile creation rejects selecting both; Saddle does not attempt an unsafe semantic merge.
 
 ## Portability
 

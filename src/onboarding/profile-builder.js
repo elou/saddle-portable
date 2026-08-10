@@ -27,6 +27,32 @@ Reload the dashboard, curated context, and latest session note. Continue from th
 
 Verify the work, reconcile durable records, and leave one concrete next action.
 `;
+const DEFAULT_MODEL_NEUTRAL_ROUTING = {
+  strategy: 'minimum-cost-that-clears-gate',
+  routes: [
+    {
+      id: 'mechanical',
+      taskKinds: ['file-operations', 'status-checks'],
+      capabilityLevel: 'low',
+      reasoningLevel: 'low',
+      escalationCondition: 'Escalate when a deterministic check fails or the requested change requires judgment.',
+    },
+    {
+      id: 'bounded-work',
+      taskKinds: ['code-generation', 'classification', 'synthesis'],
+      capabilityLevel: 'medium',
+      reasoningLevel: 'medium',
+      escalationCondition: 'Escalate when acceptance evidence conflicts or the implementation crosses the frozen contract.',
+    },
+    {
+      id: 'consequential-work',
+      taskKinds: ['architecture', 'privacy-review', 'data-loss-review', 'final-acceptance'],
+      capabilityLevel: 'frontier',
+      reasoningLevel: 'high',
+      escalationCondition: 'Keep this tier for novel architecture, unresolved safety risk, or final consequential acceptance.',
+    },
+  ],
+};
 
 export async function createProfileFromCandidates({
   sources,
@@ -116,7 +142,7 @@ export async function createProfileFromCandidates({
         await writeText(staging, target, asset.content);
         assets.push({ path: target, digest: sha256(asset.content), kind: asset.kind });
       }
-      const captured = normalizeNeutralCapability(item.content, capabilityId, item.candidate.runtime, item.candidate.source);
+      const captured = normalizeNeutralCapability(item.content, capabilityId, item.candidate.digest);
       const sensitivity = assets.some((asset) => asset.kind === 'script')
         ? 'restricted'
         : item.candidate.suggestedSensitivity;
@@ -131,6 +157,9 @@ export async function createProfileFromCandidates({
     }
 
     const now = new Date().toISOString();
+    const effectiveRouting = selected.some((entry) => entry.candidate.portableTransform === 'model-routing-v1')
+      ? DEFAULT_MODEL_NEUTRAL_ROUTING
+      : routing;
     const manifest = {
       schemaVersion: '1.0',
       profile: { ...profileMetadata, version: '1.0.0', createdAt: now, updatedAt: now },
@@ -142,7 +171,7 @@ export async function createProfileFromCandidates({
         'context.after-reset': { module: 'session-continuity', procedure: 'after-context-reset' },
         'session.end': { module: 'session-continuity', procedure: 'session-end' },
       },
-      routing,
+      routing: effectiveRouting,
       portability: {
         personalContext: 'prompt',
         integrations: 'declarations-only',
@@ -189,7 +218,7 @@ async function writeText(root, relative, content) {
 
 function joinCaptured(entries) {
   return entries.map((entry) =>
-    `<!-- Source: ${entry.candidate.runtime}:${entry.candidate.source}${entry.candidate.heading ? `#${slug(entry.candidate.heading)}` : ''} -->\n\n${entry.content.trim()}\n`)
+    `<!-- Imported guidance: ${entry.candidate.heading ? slug(entry.candidate.heading) : 'introduction'}; digest: ${entry.candidate.digest} -->\n\n${entry.content.trim()}\n`)
     .join('\n');
 }
 
@@ -230,14 +259,14 @@ function title(value) {
   return value.split('-').map((part) => `${part[0].toUpperCase()}${part.slice(1)}`).join(' ');
 }
 
-function normalizeNeutralCapability(content, capabilityId, runtime, source) {
+function normalizeNeutralCapability(content, capabilityId, sourceDigest) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content);
   const frontmatter = match?.[1] ?? '';
   const descriptionLine = /^description:\s*(.+?)\s*$/m.exec(frontmatter);
   let description = descriptionLine?.[1] ?? `Portable capability ${capabilityId}.`;
   if ((description.startsWith('"') && description.endsWith('"')) || (description.startsWith("'") && description.endsWith("'"))) description = description.slice(1, -1);
   const body = match ? content.slice(match[0].length) : content;
-  return `---\nname: ${capabilityId}\ndescription: ${JSON.stringify(description)}\n---\n<!-- Captured from ${runtime}:${source}. Review runtime-specific wording before sharing. -->\n\n${body.trim()}\n`;
+  return `---\nname: ${capabilityId}\ndescription: ${JSON.stringify(description)}\n---\n<!-- Imported capability digest: ${sourceDigest}. -->\n\n${body.trim()}\n`;
 }
 
 async function requireAbsent(outputRoot) {

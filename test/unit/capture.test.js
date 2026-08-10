@@ -22,7 +22,8 @@ test('heading intent wins over ambiguous body verbs', async () => {
   const root = await runtime({ 'AGENTS.md': '## Model routing\nUse the least costly tier that can clear the acceptance gate.\n' });
   const { candidates } = await inventoryRuntimeSources({ runtime: 'codex', runtimeRoot: root });
   assert.equal(candidates[0].suggestedKind, 'project-standard');
-  assert.match(candidates[0].reasons[0], /heading/);
+  assert.equal(candidates[0].portableTransform, 'model-routing-v1');
+  assert.match(candidates[0].reasons[0], /model-neutral/);
 });
 
 test('heading intent classifies operating and project standards before incidental body language', async () => {
@@ -62,6 +63,57 @@ Before /clear, /compact, /resume, or /branch, run /exit-check and write to ~/.cl
   assert.match(content, /before a context reset/i);
   assert.match(content, /session end/i);
   assert.doesNotMatch(content, /\.claude|\/clear|\/compact|\/resume|\/branch|exit-check/i);
+});
+
+test('replaces provider-specific model routing with a neutral cost-and-capability policy', async () => {
+  const root = await runtime({
+    'CLAUDE.md': `## Sub-Agent Model Routing
+Use the Agent tool. Route file checks to Haiku, code synthesis to Sonnet, and architecture to Opus or Claude Code.
+`,
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot: root });
+  const routing = candidates[0];
+  assert.equal(routing.selectable, true);
+  assert.equal(routing.suggestedKind, 'project-standard');
+  assert.equal(routing.portableTransform, 'model-routing-v1');
+  const content = await readCandidate(routing, { runtimeRoot: root });
+  assert.match(content, /least expensive capable tier/i);
+  assert.match(content, /mechanical|bounded implementation|architecture/i);
+  assert.doesNotMatch(content, /Claude|Codex|Haiku|Sonnet|Opus|Agent tool/i);
+});
+
+test('replaces named runtime command policies with self-contained portable procedures', async () => {
+  const root = await runtime({
+    'CLAUDE.md': `## Project Kickoff
+Ask whether to run /kickoff before building.
+## De-Slop Before Voice
+Run /de-slop before /voice-check.
+## Save as you go (chat is ephemeral; files are durable)
+Run /exit-check before /clear, /compact, /branch, or /resume.
+`,
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot: root });
+  assert.deepEqual(candidates.map((candidate) => candidate.portableTransform), [
+    'project-kickoff-v1', 'voice-preflight-v1', 'durable-session-v1',
+  ]);
+  for (const candidate of candidates) {
+    assert.equal(candidate.selectable, true);
+    const content = await readCandidate(candidate, { runtimeRoot: root });
+    assert.doesNotMatch(content, /\/(?:kickoff|de-slop|voice-check|exit-check|clear|compact|branch|resume)\b/i);
+  }
+});
+
+test('does not offer a runtime-bound skill as a universal capability', async () => {
+  const root = await runtime({
+    'skills/provider-bound/SKILL.md': '# Provider workflow\nUse Claude Code and the Agent tool, then run /compact.\n',
+    'skills/neutral/SKILL.md': '# Neutral workflow\nInspect the evidence, run the relevant checks, and report residuals.\n',
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot: root });
+  const providerBound = candidates.find((candidate) => candidate.source.includes('provider-bound'));
+  const neutral = candidates.find((candidate) => candidate.source.includes('/neutral/'));
+  assert.equal(providerBound.selectable, false);
+  assert.match(providerBound.reasons[0], /runtime-specific|neutral CAPABILITY/i);
+  assert.equal(neutral.selectable, true);
 });
 
 test('inventories capability assets and marks scripts restricted', async () => {
