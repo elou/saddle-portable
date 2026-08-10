@@ -102,4 +102,4 @@ At `71908d7`, the final nonpersonal canary selected the foundation plus `model-f
 
 Final local verification: 88 tests passed; the 29-file package dry-run was 53.5 kB packed and 209.9 kB unpacked with SHA-1 `83cda56c2a39d1295521da1c4fcc351164c8396a`; exact GitHub install from `71908d7` exposed the executable and public API and created a profile. Hosted run `31348641637` passed.
 
-Remaining gate: obtain explicit consent for any personal sections, transfer the approved bundle to Toobie, and record install, apply, first-task continuity, context-reset continuity, doctor, and rollback evidence before tagging or merging `v0.1.0`.
+Remaining gate: identify whether `toobie` or `toobie-1` is the destination, obtain explicit consent for any personal sections, transfer the approved bundle, and record install, apply, first-task continuity, context-reset continuity, doctor, and rollback evidence before tagging or merging `v0.1.0`. The prepared nonpersonal archive is `.tmp/saddle-transfer-610a434-nonpersonal.tgz` with SHA-256 `25df2579ff897558573a159aa1ffaa1c74173d969e65af756ebb601b52bd932a`; recreate it if personal sections are approved.
