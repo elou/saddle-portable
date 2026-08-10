@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -30,6 +30,7 @@ async function applyProjection(root, projection) {
   for (const item of projection.operations) {
     const filename = path.join(root, item.target);
     if (item.action === 'create-directory') await mkdir(filename, { recursive: true });
+    else if (item.action === 'remove-managed-file') await rm(filename);
     else {
       await mkdir(path.dirname(filename), { recursive: true });
       await writeFile(filename, item.content);
@@ -97,6 +98,24 @@ for (const adapter of [claude, codex]) {
     assert.ok(projection.operations.every((item) => !item.target.includes('config.toml') && !item.target.includes('settings')));
   });
 
+  test(`${adapter.id}: projects model-neutral routing preferences`, async () => {
+    const root = await target();
+    const routed = {
+      ...profile,
+      manifest: {
+        routing: {
+          strategy: 'minimum-cost-that-clears-gate',
+          routes: [{ id: 'bounded-work', taskKinds: ['code-change'], capabilityLevel: 'medium', reasoningLevel: 'medium', escalationCondition: 'the acceptance check fails' }],
+        },
+      },
+    };
+    const projection = await adapter.plan(routed, { targetRoot: root });
+    const global = projection.operations.find((item) => item.id.endsWith('global-instructions'));
+    assert.match(global.content, /minimum-cost available model/);
+    assert.match(global.content, /bounded-work: tasks code-change; capability medium; reasoning medium/);
+    assert.ok(global.sourceModules.includes('routing'));
+  });
+
   test(`${adapter.id}: preserves unmanaged instructions and replaces only its managed block`, async () => {
     const root = await target();
     const global = adapter.id === 'claude' ? 'CLAUDE.md' : 'AGENTS.md';
@@ -153,6 +172,50 @@ for (const adapter of [claude, codex]) {
     await writeFile(collision, 'user content');
     await assert.rejects(() => adapter.plan(withAssets, { targetRoot: root }), { code: 'SADDLE_PROJECTION_CONFLICT' });
     assert.equal(await readFile(collision, 'utf8'), 'user content');
+  });
+
+  test(`${adapter.id}: removes only unchanged assets dropped from a capability`, async () => {
+    const root = await target();
+    const initial = await profileWithAssets();
+    await applyProjection(root, await adapter.plan(initial, { targetRoot: root }));
+    const updated = {
+      ...initial,
+      modules: initial.modules.map((module) => module.kind !== 'capability' ? module : {
+        ...module,
+        assets: module.assets.filter((asset) => asset.kind !== 'script'),
+      }),
+    };
+    const projection = await adapter.plan(updated, { targetRoot: root });
+    assert.ok(projection.operations.some((item) => item.action === 'remove-managed-file' && item.target.endsWith('/scripts/check.js')));
+    await applyProjection(root, projection);
+    await assert.rejects(readFile(path.join(root, 'skills/saddle-release-notes/scripts/check.js')), { code: 'ENOENT' });
+    assert.equal((await adapter.verify(updated, { targetRoot: root })).status, 'exact');
+  });
+
+  test(`${adapter.id}: refuses to remove a dropped asset changed after projection`, async () => {
+    const root = await target();
+    const initial = await profileWithAssets();
+    await applyProjection(root, await adapter.plan(initial, { targetRoot: root }));
+    await writeFile(path.join(root, 'skills/saddle-release-notes/scripts/check.js'), 'user changed this\n');
+    const updated = {
+      ...initial,
+      modules: initial.modules.map((module) => module.kind !== 'capability' ? module : {
+        ...module,
+        assets: module.assets.filter((asset) => asset.kind !== 'script'),
+      }),
+    };
+    await assert.rejects(() => adapter.plan(updated, { targetRoot: root }), { code: 'SADDLE_PROJECTION_CONFLICT' });
+  });
+
+  test(`${adapter.id}: rejects unsafe paths in a managed asset manifest`, async () => {
+    const root = await target();
+    const initial = await profileWithAssets();
+    await applyProjection(root, await adapter.plan(initial, { targetRoot: root }));
+    const manifest = path.join(root, 'skills/saddle-release-notes/.saddle-assets.json');
+    const data = JSON.parse(await readFile(manifest, 'utf8'));
+    data.assets = [{ path: '../../AGENTS.md', digest: 'a'.repeat(64), kind: 'reference' }];
+    await writeFile(manifest, `${JSON.stringify(data)}\n`);
+    await assert.rejects(() => adapter.plan(initial, { targetRoot: root }), { code: 'SADDLE_PROJECTION_CONFLICT' });
   });
 }
 

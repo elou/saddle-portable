@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-import { createImportPlan, parseRuntimeSelection, scanRuntimes, verifyImport } from './domain/index.js';
+import { assertImportConsents, createImportPlan, parseRuntimeSelection, scanRuntimes, verifyImport } from './domain/index.js';
 import { exportProfile, sha256 } from './profile/index.js';
 import {
   TransactionError,
@@ -134,7 +134,7 @@ async function importCommand(parsed, io) {
   const preview = await createImportPlan({ profileRoot, targetRoot, runtimes });
 
   if (!booleanOption(parsed, 'apply')) {
-    output(io, parsed, { digest: preview.digest, plan: preview.plan }, formatPlan(preview.plan, preview.digest));
+    output(io, parsed, { digest: preview.digest, requiredConsents: preview.requiredConsents, plan: preview.plan }, formatPlan(preview.plan, preview.digest));
     return 0;
   }
 
@@ -142,15 +142,23 @@ async function importCommand(parsed, io) {
   if (accepted !== preview.digest) {
     throw new CliError(`Apply stopped. Re-run the dry-run and pass --accept-plan ${preview.digest}`);
   }
+  const consent = Object.fromEntries((stringOption(parsed, 'consent') ?? '').split(',').filter(Boolean)
+    .map((id) => [id, true]));
+  assertImportConsents(preview.requiredConsents, consent);
   const stateRoot = path.resolve(stringOption(parsed, 'state') ?? path.join(targetRoot, '.saddle'));
   const result = await applyPlan(preview.plan, {
     targetRoot,
     stateRoot,
     expectedPlanDigest: accepted,
   });
-  const verification = await verifyImport({ profileRoot, targetRoot, runtimes });
+  let verification;
+  try {
+    verification = await verifyImport({ profileRoot, targetRoot, runtimes });
+  } catch (error) {
+    throw new CliError(`Apply completed as transaction ${result.id}, but verification failed: ${error.message}. Run saddle rollback ${result.id} --target ${targetRoot} --state ${stateRoot}.`);
+  }
   if (!verification.every((item) => item.verification.status === 'exact')) {
-    throw new CliError(`Apply completed as transaction ${result.id}, but verification did not pass. Run saddle rollback ${result.id}.`);
+    throw new CliError(`Apply completed as transaction ${result.id}, but verification did not pass. Run saddle rollback ${result.id} --target ${targetRoot} --state ${stateRoot}.`);
   }
   output(io, parsed, { transaction: result, verification },
     `Applied and verified transaction ${result.id}. Roll back with: saddle rollback ${result.id} --target ${targetRoot} --state ${stateRoot}`);
@@ -255,11 +263,14 @@ function output(io, parsed, json, human) {
 
 function formatPlan(plan, digest) {
   const operations = plan.operations.map((item) => `- ${item.action} ${item.target}: ${item.reason}`).join('\n');
-  return `Plan ${digest}\nProfile: ${plan.profile.id}@${plan.profile.version}\nTarget: ${plan.targetRoot}\n${operations}\n\nNo files changed. Apply this exact preview with --apply --accept-plan ${digest}`;
+  const consent = plan.requiredConsents.length
+    ? `\nDestination consent required: ${plan.requiredConsents.map((item) => `${item.id} (${item.sensitivity})`).join(', ')}\nApply must include --consent ${plan.requiredConsents.map((item) => item.id).join(',')}.`
+    : '';
+  return `Plan ${digest}\nProfile: ${plan.profile.id}@${plan.profile.version}\nTarget: ${plan.targetRoot}\n${operations}${consent}\n\nNo files changed. Apply this exact preview with --apply --accept-plan ${digest}`;
 }
 
 function helpText() {
-  return `Saddle Portable\n\nCommands:\n  saddle setup [--port <number>] [--no-open]\n  saddle init [directory]\n  saddle scan [--target <home>] [--runtime claude,codex]\n  saddle export --profile <directory> --out <directory> [--consent id,id]\n  saddle import <bundle> --target <home> [--runtime claude,codex] [--apply --accept-plan <digest>]\n  saddle doctor --profile <directory> --target <home> [--runtime claude,codex]\n  saddle rollback <transaction-id> --target <home> --state <directory>\n\nAdd --json for machine-readable output.`;
+  return `Saddle Portable\n\nCommands:\n  saddle setup [--port <number>] [--no-open]\n  saddle init [directory]\n  saddle scan [--target <home>] [--runtime claude,codex]\n  saddle export --profile <directory> --out <directory> [--consent id,id]\n  saddle import <bundle> --target <home> [--runtime claude,codex] [--apply --accept-plan <digest>] [--consent id,id]\n  saddle doctor --profile <directory> --target <home> [--runtime claude,codex]\n  saddle rollback <transaction-id> --target <home> --state <directory>\n\nAdd --json for machine-readable output.`;
 }
 
 function defaultIo() {

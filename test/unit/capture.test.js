@@ -56,3 +56,56 @@ test('requires absolute roots and detects drift before returning exact content',
   await writeFile(path.join(root, 'CLAUDE.md'), '## Keep\nChanged\n');
   await assert.rejects(readCandidate(candidates[0], { runtimeRoot: root }), /changed/);
 });
+
+test('does not offer sections inside an existing Saddle-managed block', async () => {
+  const root = await runtime({
+    'CLAUDE.md': `## User policy\nKeep this.\n<!-- saddle:managed:start adapter=claude -->\n# Saddle operating profile\n## projected-policy\nDo not capture this generated section.\n<!-- saddle:managed:end adapter=claude -->\n`,
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot: root });
+  assert.equal(candidates.find((candidate) => candidate.heading === 'User policy').selectable, true);
+  assert.equal(candidates.some((candidate) => candidate.heading === 'projected-policy' && candidate.selectable), false);
+});
+
+test('keeps authored policy prose about permissions selectable', async () => {
+  const root = await runtime({
+    'AGENTS.md': '## Permission safety\nDo not transfer permission allowlists or trust grants.\n',
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'codex', runtimeRoot: root });
+  assert.equal(candidates[0].selectable, true);
+  assert.equal(candidates[0].suggestedKind, 'operating-policy');
+});
+
+test('excludes structural MCP connection configuration in global instructions', async () => {
+  const root = await runtime({
+    'AGENTS.md': '## MCP connection\nmcpServers:\n  internal:\n    url: https://mcp.internal.example/v1\n    command: private-launcher\n',
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'codex', runtimeRoot: root });
+  assert.equal(candidates[0].selectable, false);
+  assert.match(candidates[0].reasons[0], /connection/);
+});
+
+test('offers canonical human context as personal and never pre-authorizes it', async () => {
+  const root = await runtime({
+    'CLAUDE.md': '## Operating policy\nKeep changes reversible.\n',
+    'human.md': '## Working preferences\nPrefer concise progress updates.\n',
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot: root });
+  const personal = candidates.find((candidate) => candidate.source === 'human.md');
+  assert.equal(personal.suggestedKind, 'personal-context');
+  assert.equal(personal.suggestedSensitivity, 'personal');
+  assert.equal(personal.selectable, true);
+  assert.match(personal.reasons[0], /explicit selection/);
+});
+
+test('replaces source-machine dev-safety references with a self-contained portable policy', async () => {
+  const root = await runtime({
+    'CLAUDE.md': '## Dev server safety\nCanonical spec: `~/.claude/memory/_scripts/dev-safety/SPEC.md`\nUse the local wrapper.\n',
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot: root });
+  assert.equal(candidates[0].selectable, true);
+  assert.equal(candidates[0].portableTransform, 'dev-server-safety-v1');
+  const content = await readCandidate(candidates[0], { runtimeRoot: root });
+  assert.match(content, /complete process tree/);
+  assert.match(content, /2048 MB/);
+  assert.doesNotMatch(content, /~\/\.claude/);
+});

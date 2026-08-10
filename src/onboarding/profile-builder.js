@@ -118,7 +118,7 @@ export async function createProfileFromCandidates({
         await writeText(staging, target, asset.content);
         assets.push({ path: target, digest: sha256(asset.content), kind: asset.kind });
       }
-      const captured = `<!-- Captured from ${item.candidate.runtime}:${item.candidate.source}. Review runtime-specific wording before sharing. -->\n\n${item.content}`;
+      const captured = normalizeNeutralCapability(item.content, capabilityId, item.candidate.runtime, item.candidate.source);
       const sensitivity = assets.some((asset) => asset.kind === 'script')
         ? 'restricted'
         : item.candidate.suggestedSensitivity;
@@ -220,6 +220,16 @@ function title(value) {
   return value.split('-').map((part) => `${part[0].toUpperCase()}${part.slice(1)}`).join(' ');
 }
 
+function normalizeNeutralCapability(content, capabilityId, runtime, source) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content);
+  const frontmatter = match?.[1] ?? '';
+  const descriptionLine = /^description:\s*(.+?)\s*$/m.exec(frontmatter);
+  let description = descriptionLine?.[1] ?? `Portable capability ${capabilityId}.`;
+  if ((description.startsWith('"') && description.endsWith('"')) || (description.startsWith("'") && description.endsWith("'"))) description = description.slice(1, -1);
+  const body = match ? content.slice(match[0].length) : content;
+  return `---\nname: ${capabilityId}\ndescription: ${JSON.stringify(description)}\n---\n<!-- Captured from ${runtime}:${source}. Review runtime-specific wording before sharing. -->\n\n${body.trim()}\n`;
+}
+
 async function requireAbsent(outputRoot) {
   try {
     await readdir(outputRoot);
@@ -228,4 +238,3 @@ async function requireAbsent(outputRoot) {
     if (error.code !== 'ENOENT') throw error;
   }
 }
-

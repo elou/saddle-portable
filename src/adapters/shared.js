@@ -24,6 +24,40 @@ export function profileProvenance(profile) {
   };
 }
 
+export function routingInstructions(profile) {
+  const routing = profile?.manifest?.routing ?? profile?.routing;
+  if (!routing?.routes?.length) return '';
+  const routes = [...routing.routes].sort((left, right) => left.id.localeCompare(right.id));
+  const lines = [
+    '## model-routing',
+    '',
+    'Use the minimum-cost available model that satisfies the required capability and reasoning level. Escalate only under the stated condition.',
+    '',
+  ];
+  for (const route of routes) {
+    lines.push(`- ${route.id}: tasks ${route.taskKinds.join(', ')}; capability ${route.capabilityLevel}; reasoning ${route.reasoningLevel}; escalate when ${route.escalationCondition.trim()}`);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+export function renderRuntimeCapability(adapter, provenance, capability, sourceContent) {
+  const parsed = parseCapabilityDocument(sourceContent);
+  const description = parsed.description || `Portable capability ${capability.id}.`;
+  return `---\nname: saddle-${capability.id}\ndescription: ${JSON.stringify(description)}\n---\n${managedHeader(adapter, provenance)}${parsed.body.trim()}\n`;
+}
+
+function parseCapabilityDocument(content) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content);
+  if (!match) return { description: '', body: content };
+  const descriptionLine = /^description:\s*(.+?)\s*$/m.exec(match[1]);
+  const rawDescription = descriptionLine?.[1] ?? '';
+  let description = rawDescription;
+  if ((description.startsWith('"') && description.endsWith('"')) || (description.startsWith("'") && description.endsWith("'"))) {
+    description = description.slice(1, -1);
+  }
+  return { description, body: content.slice(match[0].length) };
+}
+
 export function assertTargetRoot(context) {
   const targetRoot = context?.targetRoot;
   if (typeof targetRoot !== 'string' || !path.isAbsolute(targetRoot)) {
@@ -150,7 +184,11 @@ export function mergeManagedBlock(existing, adapter, block) {
 }
 
 export function hasManagedProvenance(content, adapter) {
-  return typeof content === 'string' && content.startsWith(`<!-- Saddle managed projection; adapter: ${adapter};`);
+  if (typeof content !== 'string') return false;
+  const header = `<!-- Saddle managed projection; adapter: ${adapter};`;
+  if (content.startsWith(header)) return true;
+  const frontmatter = /^---\r?\n[\s\S]*?\r?\n---\r?\n/.exec(content);
+  return Boolean(frontmatter && content.slice(frontmatter[0].length).startsWith(header));
 }
 
 export function extractManagedBlock(content, adapter) {
@@ -176,7 +214,7 @@ export async function existingFile(filename) {
   }
 }
 
-export function operation({ id, action, target, expectedPriorDigest, resultingDigest, content, managedDigest, sourceModule, adapter, reason, risk }) {
+export function operation({ id, action, target, expectedPriorDigest, resultingDigest, content, managedDigest, sourceModule, sourceModules, adapter, reason, risk }) {
   const relativeTarget = validateRelativeTarget(target);
   return Object.freeze({
     id,
@@ -188,6 +226,7 @@ export function operation({ id, action, target, expectedPriorDigest, resultingDi
     ...(content === undefined ? {} : { content }),
     ...(managedDigest === undefined ? {} : { managedDigest }),
     sourceModule,
+    sourceModules: sourceModules ?? [sourceModule],
     adapter,
     reason,
     risk,

@@ -181,3 +181,90 @@ test('a plan cannot target the same path more than once', async () => {
     (error) => error instanceof TransactionError && error.code === 'INVALID_PLAN',
   );
 });
+
+test('explicit rollback stops before mutation when an applied target has new user edits', async () => {
+  const { targetRoot, stateRoot } = await roots();
+  await writeFile(path.join(targetRoot, 'first.txt'), 'first-before');
+  await writeFile(path.join(targetRoot, 'second.txt'), 'second-before');
+  const plan = {
+    operations: [
+      operation({ id: 'first', action: 'replace-file', target: 'first.txt', prior: digestBytes('first-before'), content: 'first-applied' }),
+      operation({ id: 'second', action: 'replace-file', target: 'second.txt', prior: digestBytes('second-before'), content: 'second-applied' }),
+    ],
+  };
+  const applied = await applyPlan(plan, {
+    targetRoot,
+    stateRoot,
+    expectedPlanDigest: digestPlan(plan),
+    transactionId: 'rollback-drift',
+  });
+  await writeFile(path.join(targetRoot, 'second.txt'), 'user-edited-after-apply');
+
+  await assert.rejects(
+    rollbackTransaction(applied.id, { targetRoot, stateRoot }),
+    (error) => error instanceof TransactionError && error.code === 'ROLLBACK_TARGET_DRIFT',
+  );
+  assert.equal(await readFile(path.join(targetRoot, 'first.txt'), 'utf8'), 'first-applied');
+  assert.equal(await readFile(path.join(targetRoot, 'second.txt'), 'utf8'), 'user-edited-after-apply');
+});
+
+test('replace-file preserves the existing file mode', async () => {
+  const { targetRoot, stateRoot } = await roots();
+  const target = path.join(targetRoot, 'mode.txt');
+  await writeFile(target, 'before', { mode: 0o644 });
+  const plan = {
+    operations: [operation({ id: 'mode', action: 'replace-file', target: 'mode.txt', prior: digestBytes('before'), content: 'after' })],
+  };
+  await applyPlan(plan, { targetRoot, stateRoot, expectedPlanDigest: digestPlan(plan) });
+  assert.equal((await stat(target)).mode & 0o777, 0o644);
+});
+
+test('create-directory creates missing parents and rollback removes only those parents', async () => {
+  const { targetRoot, stateRoot } = await roots();
+  const plan = {
+    operations: [operation({ id: 'nested', action: 'create-directory', target: 'skills/saddle-demo' })],
+  };
+  const applied = await applyPlan(plan, {
+    targetRoot,
+    stateRoot,
+    expectedPlanDigest: digestPlan(plan),
+    transactionId: 'nested-directory',
+  });
+  assert.equal((await stat(path.join(targetRoot, 'skills/saddle-demo'))).isDirectory(), true);
+  await rollbackTransaction(applied.id, { targetRoot, stateRoot });
+  await assert.rejects(stat(path.join(targetRoot, 'skills')), { code: 'ENOENT' });
+});
+
+test('rollback removes nested directories created for managed capability files', async () => {
+  const { targetRoot, stateRoot } = await roots();
+  const plan = {
+    operations: [
+      operation({ id: 'capability-dir', action: 'create-directory', target: 'skills/saddle-demo' }),
+      operation({ id: 'nested-file', action: 'create-file', target: 'skills/saddle-demo/scripts/check.js', content: 'inert' }),
+    ],
+  };
+  const applied = await applyPlan(plan, { targetRoot, stateRoot, expectedPlanDigest: digestPlan(plan) });
+  const rolledBack = await rollbackTransaction(applied.id, { targetRoot, stateRoot });
+  assert.equal(rolledBack.status, 'rolled-back');
+  await assert.rejects(stat(path.join(targetRoot, 'skills')), { code: 'ENOENT' });
+});
+
+test('rollback detects an unrecognized descendant before restoring any file', async () => {
+  const { targetRoot, stateRoot } = await roots();
+  await writeFile(path.join(targetRoot, 'outside.txt'), 'before');
+  const plan = {
+    operations: [
+      operation({ id: 'outside', action: 'replace-file', target: 'outside.txt', prior: digestBytes('before'), content: 'applied' }),
+      operation({ id: 'capability-dir', action: 'create-directory', target: 'skills/saddle-demo' }),
+      operation({ id: 'managed', action: 'create-file', target: 'skills/saddle-demo/SKILL.md', content: 'managed' }),
+    ],
+  };
+  const applied = await applyPlan(plan, { targetRoot, stateRoot, expectedPlanDigest: digestPlan(plan) });
+  await writeFile(path.join(targetRoot, 'skills/saddle-demo/user-note.md'), 'keep me');
+  await assert.rejects(
+    rollbackTransaction(applied.id, { targetRoot, stateRoot }),
+    (error) => error instanceof TransactionError && error.code === 'ROLLBACK_TARGET_DRIFT',
+  );
+  assert.equal(await readFile(path.join(targetRoot, 'outside.txt'), 'utf8'), 'applied');
+  assert.equal(await readFile(path.join(targetRoot, 'skills/saddle-demo/user-note.md'), 'utf8'), 'keep me');
+});

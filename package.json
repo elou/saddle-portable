@@ -5,12 +5,16 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "saddle": "./bin/saddle.js"
+    "saddle": "bin/saddle.js"
   },
   "files": [
     "bin/",
     "src/",
     "schemas/",
+    "docs/",
+    "ARCHITECTURE.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
     "README.md",
     "LICENSE"
   ],
@@ -30,5 +34,14 @@
     "configuration",
     "portable-profile",
     "saddle"
-  ]
+  ],
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "author": ""
 }

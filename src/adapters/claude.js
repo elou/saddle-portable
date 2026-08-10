@@ -2,7 +2,7 @@ import path from 'node:path';
 import {
   ABSENT, assertTargetRoot, capabilityAssets, existingFile, exists, extractManagedBlock, fileDigest, hasManagedProvenance,
   managedBlock, managedHeader, mergeManagedBlock, moduleContent, operation, profileProvenance, SaddleProjectionConflictError,
-  sha256, targetPath,
+  renderRuntimeCapability, routingInstructions, sha256, targetPath, validateRelativeTarget,
 } from './shared.js';
 
 const LIFECYCLE = Object.freeze({
@@ -27,22 +27,30 @@ async function instructionContent(profile) {
     ['operating-policy', 'session-continuity', 'project-standard', 'personal-context'].includes(module.kind))
     .sort((a, b) => a.id.localeCompare(b.id));
   const chunks = await Promise.all(modules.map(async (module) => `## ${module.id}\n\n${(await moduleContent(profile, module)).trim()}\n`));
-  return { modules, body: chunks.join('\n') };
+  const routing = routingInstructions(profile);
+  return { modules, body: `${chunks.join('\n')}${routing ? `\n${routing}` : ''}`, routing: Boolean(routing) };
 }
 
-async function makeFileOperation(root, id, target, content, sourceModule, reason, managedDigest, risk = 'low') {
+async function makeFileOperation(root, id, target, content, sourceModule, reason, managedDigest, risk = 'low', sourceModules) {
   const prior = await fileDigest(targetPath(root, target));
   if (prior === null) throw new SaddleProjectionConflictError(`Cannot replace non-file managed target ${target}.`);
   return operation({ id, action: prior === ABSENT ? 'create-file' : 'replace-file', target,
-    expectedPriorDigest: prior, resultingDigest: sha256(content), content, managedDigest, sourceModule, adapter: 'claude', reason, risk });
+    expectedPriorDigest: prior, resultingDigest: sha256(content), content, managedDigest, sourceModule, sourceModules, adapter: 'claude', reason, risk });
 }
 
 function managedAssets(content, capability) {
-  if (content === ABSENT) return new Set();
+  if (content === ABSENT) return new Map();
   try {
     const manifest = JSON.parse(content);
     if (manifest.saddleManagedProjection !== 1 || manifest.adapter !== id || manifest.capability !== capability.id || !Array.isArray(manifest.assets)) throw new Error('invalid');
-    return new Set(manifest.assets.map((asset) => asset.path));
+    const records = new Map();
+    for (const asset of manifest.assets) {
+      if (typeof asset.path !== 'string' || asset.path.includes('\\') || asset.path === '.' ||
+        validateRelativeTarget(asset.path) !== asset.path || !/^[a-f0-9]{64}$/.test(asset.digest) ||
+        !['reference', 'script', 'asset'].includes(asset.kind) || records.has(asset.path)) throw new Error('invalid');
+      records.set(asset.path, asset);
+    }
+    return records;
   } catch {
     throw new SaddleProjectionConflictError(`Refusing to replace an unmanaged asset manifest for capability ${capability.id}.`);
   }
@@ -66,9 +74,13 @@ export async function plan(profile, context) {
   const operations = [];
   const instructions = await instructionContent(profile);
   const block = managedBlock(id, provenance, `# Saddle operating profile\n\n${instructions.body}`);
+  const instructionRisk = instructions.modules.some((module) => module.sensitivity === 'restricted')
+    ? 'restricted'
+    : instructions.modules.some((module) => module.sensitivity === 'personal') ? 'personal' : 'low';
   const global = mergeManagedBlock(await existingFile(targetPath(root, 'CLAUDE.md')), id, block);
   operations.push(await makeFileOperation(root, 'claude:global-instructions', 'CLAUDE.md', global,
-    'profile', 'Projects the enabled operating instructions for Claude without replacing unmanaged instructions.', sha256(block)));
+    'profile', 'Projects the enabled operating instructions for Claude without replacing unmanaged instructions.', sha256(block), instructionRisk,
+    [...instructions.modules.map((module) => module.id), ...(instructions.routing ? ['routing'] : [])]));
   for (const capability of enabled(profile, 'capability')) {
     capabilityEntrypoint(capability);
     const dir = `skills/saddle-${capability.id}`;
@@ -78,16 +90,28 @@ export async function plan(profile, context) {
     if (priorContent !== ABSENT && (priorContent === null || !hasManagedProvenance(priorContent, id))) {
       throw new SaddleProjectionConflictError(`Refusing to replace unmanaged capability target ${target}.`);
     }
-    const content = `${managedHeader(id, provenance)}${(await moduleContent(profile, capability)).trim()}\n`;
+    const content = renderRuntimeCapability(id, provenance, capability, await moduleContent(profile, capability));
     operations.push(await makeFileOperation(root, `claude:capability:${capability.id}`, target, content, capability.id,
-      `Projects neutral capability ${capability.id} as Claude's SKILL.md entrypoint.`));
+      `Projects neutral capability ${capability.id} as Claude's SKILL.md entrypoint.`, undefined, capability.sensitivity === 'standard' ? 'low' : capability.sensitivity));
     const manifestTarget = `${dir}/.saddle-assets.json`;
-    const previouslyManaged = managedAssets(await existingFile(targetPath(root, manifestTarget)), capability);
+    const previousManifest = await existingFile(targetPath(root, manifestTarget));
+    const previouslyManaged = managedAssets(previousManifest, capability);
     const assets = await capabilityAssets(profile, capability);
+    const currentAssets = new Set(assets.map((asset) => asset.relative));
+    for (const [relative, previous] of previouslyManaged) {
+      if (currentAssets.has(relative)) continue;
+      const assetTarget = `${dir}/${relative}`;
+      const assetExisting = await existingFile(targetPath(root, assetTarget));
+      if (assetExisting === ABSENT) continue;
+      if (assetExisting === null || sha256(assetExisting) !== previous.digest) throw new SaddleProjectionConflictError(`Refusing to remove changed managed capability asset ${assetTarget}.`);
+      operations.push(operation({ id: `claude:remove-capability-asset:${capability.id}:${relative}`, action: 'remove-managed-file', target: assetTarget,
+        expectedPriorDigest: previous.digest, sourceModule: capability.id, adapter: id, reason: `Removes the unchanged managed asset ${relative}, which is no longer in capability ${capability.id}.`, risk: previous.kind === 'script' ? 'restricted' : 'low' }));
+    }
     for (const asset of assets) {
       const assetTarget = `${dir}/${asset.relative}`;
       const assetExisting = await existingFile(targetPath(root, assetTarget));
-      if (assetExisting !== ABSENT && (assetExisting === null || !previouslyManaged.has(asset.relative))) throw new SaddleProjectionConflictError(`Refusing to replace unmanaged capability asset ${assetTarget}.`);
+      const previous = previouslyManaged.get(asset.relative);
+      if (assetExisting !== ABSENT && (assetExisting === null || !previous || sha256(assetExisting) !== previous.digest)) throw new SaddleProjectionConflictError(`Refusing to replace unmanaged or changed capability asset ${assetTarget}.`);
       const isScript = asset.kind === 'script';
       operations.push(await makeFileOperation(root, `claude:capability-asset:${capability.id}:${asset.relative}`, assetTarget, asset.content, capability.id,
         isScript ? `Copies script asset ${asset.relative} as inert content; it is not executed.` : `Copies inert capability asset ${asset.relative}.`, undefined, isScript ? 'restricted' : 'low'));
@@ -96,6 +120,9 @@ export async function plan(profile, context) {
       const manifest = `${JSON.stringify({ saddleManagedProjection: 1, adapter: id, capability: capability.id, assets: assets.map((asset) => ({ path: asset.relative, digest: sha256(asset.content), kind: asset.kind })) }, null, 2)}\n`;
       operations.push(await makeFileOperation(root, `claude:capability-assets-manifest:${capability.id}`, manifestTarget, manifest, capability.id,
         `Records Saddle provenance for inert capability assets in ${capability.id}.`));
+    } else if (previousManifest !== ABSENT) {
+      operations.push(operation({ id: `claude:remove-capability-assets-manifest:${capability.id}`, action: 'remove-managed-file', target: manifestTarget,
+        expectedPriorDigest: sha256(previousManifest), sourceModule: capability.id, adapter: id, reason: `Removes the managed asset manifest because capability ${capability.id} no longer contains assets.`, risk: 'low' }));
     }
   }
   return Object.freeze({ adapter: id, targetRoot: root, provenance, capabilities: capabilities().lifecycle, operations: Object.freeze(operations) });
@@ -115,8 +142,8 @@ export async function verify(profile, context) {
     const expectedManaged = item.managedDigest;
     const actualManaged = expectedManaged ? extractManagedBlock(actualContent, id) : actualContent;
     const actualManagedDigest = actualManaged === null || actualManaged === ABSENT ? actualManaged : sha256(actualManaged);
-    return Object.freeze({ target: item.target, expectedDigest: item.resultingDigest, actualDigest,
-      status: actualDigest === ABSENT ? 'missing' : actualDigest === null ? 'unverifiable' : actualManaged === null ? 'drifted' : expectedManaged ? actualManagedDigest === expectedManaged ? 'exact' : 'drifted' : actualDigest === item.resultingDigest ? 'exact' : 'drifted' });
+    return Object.freeze({ target: item.target, expectedDigest: item.action === 'remove-managed-file' ? ABSENT : item.resultingDigest, actualDigest,
+      status: item.action === 'remove-managed-file' ? actualDigest === ABSENT ? 'exact' : 'drifted' : actualDigest === ABSENT ? 'missing' : actualDigest === null ? 'unverifiable' : actualManaged === null ? 'drifted' : expectedManaged ? actualManagedDigest === expectedManaged ? 'exact' : 'drifted' : actualDigest === item.resultingDigest ? 'exact' : 'drifted' });
   }));
   return Object.freeze({ adapter: id, artifacts, status: artifacts.every((artifact) => artifact.status === 'exact') ? 'exact' : artifacts.some((artifact) => artifact.status === 'drifted') ? 'drifted' : artifacts.some((artifact) => artifact.status === 'missing') ? 'missing' : 'unverifiable' });
 }

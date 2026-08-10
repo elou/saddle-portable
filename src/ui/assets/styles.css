@@ -94,8 +94,17 @@ dd { margin: 0; color: var(--muted); }
 .preview-meta { display: grid; grid-template-columns: 100px 1fr; gap: 8px 16px; margin-block-end: 24px; font-size: 14px; }
 .preview-meta dt { color: var(--muted); }
 .preview-meta dd { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.consent-list { margin: 0 0 24px; padding: 16px; border: 1px solid color-mix(in oklch, var(--danger) 35%, var(--line)); }
+.consent-list legend { padding-inline: 6px; font-weight: 700; }
+.consent-list p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+.consent-list label { display: flex; gap: 10px; align-items: center; min-block-size: 44px; border-block-start: 1px solid var(--line); }
+.consent-list input { inline-size: 18px; block-size: 18px; accent-color: var(--danger); }
 .operation { grid-template-columns: 92px 1fr; }
 .operation code { color: var(--ink); overflow-wrap: anywhere; }
+.operation-modules { display: inline-block; margin-block-start: 4px; }
+.content-preview { margin-block-start: 10px; }
+.content-preview summary { cursor: pointer; color: var(--accent); font-size: 13px; font-weight: 650; }
+.content-preview pre { max-block-size: 280px; overflow: auto; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-muted); border: 1px solid var(--line); font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .risk-high { color: var(--danger); font-weight: 700; }
 
 .actions { display: flex; justify-content: flex-end; gap: 8px; margin-block-start: 40px; }

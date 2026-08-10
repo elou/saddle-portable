@@ -59,7 +59,8 @@ async function preview() {
     document.querySelector('#apply-button').disabled = true;
     state.preview = await api('/api/plan', requestBody());
     container.replaceChildren(renderPreview(state.preview));
-    document.querySelector('#apply-button').disabled = false;
+    document.querySelectorAll('input[name="import-consent"]').forEach((input) => input.addEventListener('change', syncApplyEnabled));
+    syncApplyEnabled();
   } catch (error) {
     renderError(container, error.message);
   }
@@ -145,11 +146,16 @@ async function apply() {
       ...requestBody(),
       stateRoot: `${state.targetRoot}/.saddle`,
       planDigest: state.preview.digest,
+      consents: selectedImportConsents(),
     });
-    const exact = state.result.verification.every((item) => item.verification.status === 'exact');
-    if (!exact) throw new Error('Files were applied, but verification did not pass. Use rollback before continuing.');
+    const exact = !state.result.verificationError && state.result.verification.length === state.runtimes.length && state.result.verification.every((item) => item.verification.status === 'exact');
     renderFinish();
     showStep(5);
+    if (!exact) {
+      document.querySelector('#finish-title').textContent = 'The apply needs attention.';
+      document.querySelector('#finish-copy').textContent = 'Verification did not pass. Roll back this transaction before continuing.';
+      renderError(document.querySelector('#recovery-state'), state.result.verificationError ?? 'The files changed, but Saddle could not verify the installed profile. Use Roll back this setup below.');
+    }
   } catch (error) {
     renderError(document.querySelector('#preview-state'), error.message);
   } finally {
@@ -200,6 +206,15 @@ function requestBody() {
   return { profileRoot: state.profileRoot, targetRoot: state.targetRoot, runtimes: state.runtimes };
 }
 
+function selectedImportConsents() {
+  return [...document.querySelectorAll('input[name="import-consent"]:checked')].map((input) => input.value);
+}
+
+function syncApplyEnabled() {
+  const required = state.preview?.requiredConsents?.length ?? 0;
+  document.querySelector('#apply-button').disabled = selectedImportConsents().length !== required;
+}
+
 async function api(endpoint, body) {
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -229,15 +244,38 @@ function renderPreview(previewData) {
     const detail = document.createElement('dd'); detail.textContent = value;
     metadata.append(term, detail);
   }
+  if (previewData.requiredConsents?.length) {
+    const consent = document.createElement('fieldset'); consent.className = 'consent-list';
+    const legend = document.createElement('legend'); legend.textContent = 'Confirm destination use';
+    const explanation = document.createElement('p'); explanation.textContent = 'These items are personal or restricted. Confirm each item before Apply.';
+    consent.append(legend, explanation);
+    for (const item of previewData.requiredConsents) {
+      const label = document.createElement('label');
+      const input = document.createElement('input'); input.type = 'checkbox'; input.name = 'import-consent'; input.value = item.id;
+      const copy = document.createElement('span'); copy.textContent = `${item.id} · ${item.kind} · ${item.sensitivity}`;
+      label.append(input, copy); consent.append(label);
+    }
+    wrapper.append(consent);
+  }
   const operations = document.createElement('div');
   previewData.plan.operations.forEach((item) => {
     const operation = document.createElement('div'); operation.className = 'operation';
     const action = document.createElement('strong'); action.textContent = item.action.replaceAll('-', ' ');
-    if (item.risk === 'restricted' || item.risk === 'high') action.className = 'risk-high';
+    if (item.risk === 'personal' || item.risk === 'restricted' || item.risk === 'high') action.className = 'risk-high';
     const copy = document.createElement('div');
     const target = document.createElement('code'); target.textContent = item.target;
     const reason = document.createElement('small'); reason.textContent = item.reason;
     copy.append(target, document.createElement('br'), reason);
+    if (item.sourceModules?.length) {
+      const modules = document.createElement('small'); modules.className = 'operation-modules'; modules.textContent = `Modules: ${item.sourceModules.join(', ')} · Risk: ${item.risk}`;
+      copy.append(document.createElement('br'), modules);
+    }
+    if (typeof item.content === 'string') {
+      const details = document.createElement('details'); details.className = 'content-preview';
+      const summary = document.createElement('summary'); summary.textContent = 'Review proposed content';
+      const pre = document.createElement('pre'); pre.textContent = item.content;
+      details.append(summary, pre); copy.append(details);
+    }
     operation.append(action, copy);
     operations.append(operation);
   });

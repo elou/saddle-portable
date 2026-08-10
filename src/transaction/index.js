@@ -4,6 +4,7 @@ import {
   lstat,
   mkdir,
   readFile,
+  readdir,
   realpath,
   rename,
   rm,
@@ -214,6 +215,8 @@ export async function rollbackTransaction(transactionId, { targetRoot, stateRoot
     });
   }
 
+  await assertAppliedState(journal.records, transactionId);
+
   const rollback = await restoreRecords(journal.records, transactionDirectory, transactionId);
   journal.status = rollback.complete ? 'rolled-back' : 'rollback-incomplete';
   journal.rollback = rollback;
@@ -321,7 +324,7 @@ function validateExpectedState(operation, prior) {
 async function applyOperation(operation, target, transactionId, prior) {
   if (operation.action === 'create-directory') {
     if (prior.type === 'directory') return;
-    await mkdir(target, { recursive: false });
+    await mkdir(target, { recursive: true });
     return;
   }
   if (operation.action === 'remove-managed-file') {
@@ -329,7 +332,8 @@ async function applyOperation(operation, target, transactionId, prior) {
     return;
   }
   await mkdir(path.dirname(target), { recursive: true });
-  await atomicWrite(target, Buffer.from(operation.content), transactionId, operation.mode);
+  const mode = operation.mode ?? (prior.type === 'file' ? prior.mode : 0o600);
+  await atomicWrite(target, Buffer.from(operation.content), transactionId, mode);
 }
 
 async function atomicWrite(target, content, transactionId, mode = 0o600) {
@@ -345,15 +349,16 @@ async function atomicWrite(target, content, transactionId, mode = 0o600) {
 
 async function restoreRecords(records, transactionDirectory, transactionId) {
   const errors = [];
+  const directoryRecords = [];
   for (const record of [...records].reverse()) {
     if (!record.applied) continue;
+    if (record.operation.action === 'create-directory') {
+      directoryRecords.push(record);
+      continue;
+    }
     try {
       if (record.prior.type === 'absent') {
-        if (record.operation.action === 'create-directory') {
-          await rmdir(record.target);
-        } else {
-          await rm(record.target, { force: true });
-        }
+        await rm(record.target, { force: true });
       } else if (record.prior.type === 'file') {
         const content = await readFile(path.join(transactionDirectory, record.prior.backup));
         await mkdir(path.dirname(record.target), { recursive: true });
@@ -380,7 +385,86 @@ async function restoreRecords(records, transactionDirectory, transactionId) {
       }
     }
   }
+  for (const record of directoryRecords) {
+    try {
+      if (record.prior.type === 'absent') await rmdir(record.target);
+      const restored = await inspectTarget(record.target);
+      if (!samePrior(restored, record.prior)) throw new Error(`Restored state did not match for ${record.operation.target}.`);
+      record.applied = false;
+    } catch (error) {
+      if (error?.code === 'ENOENT' && record.prior.type === 'absent') {
+        record.applied = false;
+      } else {
+        errors.push({ operationId: record.operation.id, message: String(error?.message ?? error) });
+      }
+    }
+  }
+  for (const directory of createdParents) {
+    try {
+      await rmdir(directory);
+    } catch (error) {
+      if (error?.code !== 'ENOENT' && error?.code !== 'ENOTEMPTY') {
+        errors.push({ operationId: 'implicit-directory', message: String(error?.message ?? error) });
+      }
+    }
+  }
   return { complete: errors.length === 0, errors };
+}
+
+async function assertAppliedState(records, transactionId) {
+  for (const record of records) {
+    if (!record.applied) continue;
+    const actual = await inspectTarget(record.target);
+    const operation = record.operation;
+    const matches = operation.action === 'remove-managed-file'
+      ? actual.type === 'absent'
+      : operation.action === 'create-directory'
+        ? actual.type === 'directory'
+        : actual.type === 'file' && actual.digest === operation.resultingDigest;
+    if (matches && operation.action === 'create-directory' && record.prior.type === 'absent') {
+      const unexpected = await unexpectedDirectoryEntries(record, records);
+      if (unexpected.length) {
+        throw new TransactionError(
+          `Rollback stopped because ${operation.target} contains unrecognized content: ${unexpected[0]}.`,
+          { code: 'ROLLBACK_TARGET_DRIFT', transactionId },
+        );
+      }
+    }
+    if (!matches) {
+      throw new TransactionError(
+        `Rollback stopped because ${operation.target} changed after transaction ${transactionId}.`,
+        { code: 'ROLLBACK_TARGET_DRIFT', transactionId },
+      );
+    }
+  }
+}
+
+async function unexpectedDirectoryEntries(directoryRecord, records) {
+  const root = directoryRecord.target;
+  const expected = new Set();
+  for (const record of records) {
+    if (!record.applied || record.target === root || !record.target.startsWith(`${root}${path.sep}`)) continue;
+    if (record.operation.action === 'remove-managed-file') continue;
+    expected.add(record.target);
+    let cursor = path.dirname(record.target);
+    while (cursor !== root && cursor.startsWith(`${root}${path.sep}`)) {
+      expected.add(cursor);
+      cursor = path.dirname(cursor);
+    }
+  }
+  const unexpected = [];
+  async function walk(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const target = path.join(directory, entry.name);
+      if (!expected.has(target)) {
+        unexpected.push(path.relative(root, target));
+        continue;
+      }
+      if (entry.isDirectory()) await walk(target);
+    }
+  }
+  await walk(root);
+  return unexpected;
 }
 
 async function findMissingParents(root, target) {

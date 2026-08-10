@@ -34,7 +34,6 @@ my-profile/
     personal-context.md       # optional, consent required
   capabilities/
     <capability-id>/
-      capability.json
       CAPABILITY.md
       references/             # optional
       scripts/                # optional, inert until separately trusted
@@ -116,14 +115,9 @@ Scripts and references nested under a capability are content, not authority. Imp
 
 The canonical unit is a capability, not a Claude skill or Codex skill. Its neutral entrypoint is `CAPABILITY.md`; a runtime adapter may render a runtime-required filename such as `SKILL.md` without changing the source.
 
-`capability.json` declares:
+`CAPABILITY.md` starts with neutral frontmatter containing a stable name and description. The profile manifest declares its stable id, entrypoint, sensitivity, consent mode, optional references and scripts, and content digests. Runtime adapters render the small amount of frontmatter required by each destination while keeping provenance below the frontmatter boundary.
 
-- stable id, name, description, and semantic version;
-- the `CAPABILITY.md` entrypoint;
-- optional relative references and scripts;
-- required runtime features, such as filesystem access or browser control;
-- requested local permissions as declarations only; and
-- content digests.
+Required runtime features and requested local permissions remain declarations in capability prose. They never grant authority on the destination computer.
 
 Capability prose must describe inputs, outputs, constraints, and verification without naming a model unless the capability genuinely depends on one. Adapter-specific instructions live in adapters, not capabilities.
 
@@ -177,7 +171,7 @@ Approved roots are represented with `${home}`, `${workspace}`, and `${profile}`.
 
 ### Consent
 
-Standard modules are selected by the user during inventory. Personal and restricted modules default off and require item-level explicit consent on every export. Consent is recorded as bundle metadata, not as permanent permission on the destination machine.
+Standard modules are selected by the user during inventory. Personal and restricted modules default off and require item-level explicit consent on every export and destination apply. Consent is recorded as bundle metadata, not as permanent permission on the destination machine.
 
 ## 6. Adapter interface
 
@@ -223,7 +217,7 @@ The plan is an immutable JSON-serializable value. Each operation includes:
 
 Apply requires the digest of the previewed plan. If the target changed after preview, apply stops and requests a new preview.
 
-Before the first target mutation, Saddle writes a transaction journal and backups beneath a caller-supplied Saddle state root. Writes use a sibling temporary file followed by rename. On any failure, completed operations are reversed in order and the restored state is verified. A successful transaction remains rollbackable until its backup is pruned explicitly.
+Before the first target mutation, Saddle writes a transaction journal and backups beneath a caller-supplied Saddle state root. Writes use a sibling temporary file followed by rename. On any failure, completed operations are reversed in order and the restored state is verified. Explicit rollback remains available while backups exist and every applied target still matches the transaction; target drift stops rollback before restoration.
 
 Saddle only removes a file when its current digest matches a prior Saddle-managed record. It never deletes an unrecognized file.
 

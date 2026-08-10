@@ -37,6 +37,10 @@ export async function createImportPlan({ profileRoot, targetRoot, runtimes = ['c
   const loaded = await loadProfile(profileRoot);
   const portableDigest = sha256(JSON.stringify(loaded.manifest));
   const profile = { ...loaded, digest: portableDigest };
+  const requiredConsents = loaded.modules
+    .filter((module) => module.enabled && module.sensitivity !== 'standard')
+    .map(({ id, kind, sensitivity }) => Object.freeze({ id, kind, sensitivity }))
+    .sort((left, right) => left.id.localeCompare(right.id));
   const projections = [];
   const operations = [];
 
@@ -66,10 +70,22 @@ export async function createImportPlan({ profileRoot, targetRoot, runtimes = ['c
     },
     targetRoot: path.resolve(targetRoot),
     runtimes: selected,
+    requiredConsents: Object.freeze(requiredConsents),
     projections,
     operations: Object.freeze(operations),
   });
-  return { profile, plan, digest: digestPlan(plan) };
+  return { profile, plan, requiredConsents, digest: digestPlan(plan) };
+}
+
+export function assertImportConsents(requiredConsents, consent = {}) {
+  const approved = consent && typeof consent === 'object' ? consent : {};
+  const missing = (requiredConsents ?? []).filter((item) => approved[item.id] !== true);
+  if (missing.length) {
+    const error = new Error(`Explicit destination consent is required for: ${missing.map((item) => item.id).join(', ')}.`);
+    error.code = 'CONSENT_REQUIRED';
+    error.requiredConsents = missing;
+    throw error;
+  }
 }
 
 export async function verifyImport({ profileRoot, targetRoot, runtimes = ['claude', 'codex'] }) {
@@ -94,4 +110,3 @@ function normalizeRuntimes(runtimes) {
   if (typeof runtimes === 'string') return parseRuntimeSelection(runtimes);
   return parseRuntimeSelection(runtimes.join(','));
 }
-

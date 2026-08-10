@@ -32,6 +32,13 @@ test('packed package installs without scripts and exposes a working saddle execu
   const help = await exec(executable, ['help'], { cwd: workspace });
   assert.match(help.stdout, /Saddle Portable/);
 
+  const imported = await exec(process.execPath, [
+    '--input-type=module',
+    '--eval',
+    'const api = await import("saddle-portable"); if (typeof api.loadProfile !== "function") process.exit(1);',
+  ], { cwd: workspace });
+  assert.equal(imported.stderr, '');
+
   const profile = path.join(workspace, 'packed-profile');
   await exec(executable, ['init', profile, '--id', 'packed-profile'], { cwd: workspace });
   const manifest = JSON.parse(await readFile(path.join(profile, 'saddle.profile.json'), 'utf8'));

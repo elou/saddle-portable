@@ -33,5 +33,46 @@ Build and verify a standalone, runtime-agnostic Saddle setup package that manage
 
 ## Current checkpoint
 
-Repository and Linear issue created. Next: write the architecture contract, then delegate isolated implementation slices with explicit file ownership.
+Repository and Linear issue created. The architecture contract is frozen and the first implementation checkpoint is commit `70fa915`.
 
+Implemented:
+
+- strict neutral profile, lifecycle, routing, portability, and capability-asset validation;
+- read-only Claude and Codex source inventory with section-level advisory classification;
+- capture into one neutral profile with personal and restricted items off by default;
+- Claude and Codex managed projections that preserve unrelated global instructions;
+- plan-digest enforcement, preflight, transactional apply, verification, doctor, and rollback;
+- token-protected loopback onboarding interface and headless CLI; and
+- packed npm installation without install or build scripts.
+
+Verification:
+
+- `npm test`: 53 passed after correcting heading-classification precedence.
+- `npm run pack:check`: 19-file package, 33.8 kB packed before public docs were added.
+- Browser rehearsal: desktop and 390 px layouts without horizontal overflow; source inventory, profile creation, preview, apply, doctor, and rollback passed; no browser console warnings or errors.
+- Actual delegated implementation tier: `gpt-5.6-terra medium` for profile, adapter, and source-inventory slices.
+
+## Independent review and release candidate
+
+The Sol High independent review reproduced release blockers that the initial byte-level suite missed. The implementation now:
+
+- creates missing capability parent directories transactionally and removes nested managed directories cleanly on rollback;
+- refuses rollback before any restore when an applied file or a Saddle-created directory contains new user content;
+- removes stale managed assets only when their recorded digest still matches and rejects unsafe managed-manifest paths;
+- rejects `.env` assets and structural MCP/runtime configuration without excluding negative policy prose;
+- requires item-level destination consent for personal and restricted modules;
+- shows each operation's modules, risk, and proposed content before apply;
+- projects structured model-neutral routing;
+- offers canonical `human.md` sections as personal context, while keeping session history outside the operating profile;
+- replaces source-machine dev-server references with a self-contained 2 GB process-tree policy; and
+- renders runtime skill frontmatter at byte zero and recognizes that generated provenance on later plans.
+
+Verification:
+
+- `npm test`: 75 passed.
+- Packed-consumer install, executable, public API import, and profile creation passed.
+- Browser rehearsal passed source inventory, personal/restricted destination consent, proposed-content inspection, apply, exact doctor results for Claude and Codex, and rollback. The local server ran beneath the 2 GB process-tree cap.
+- Independent review found no unresolved code P0 or P1 after rerunning focused reproductions.
+- Public CI is prepared for Node 20 and current Node 26 on macOS, plus Node 26 on Linux.
+
+Remaining release gates are the GitHub owner/repository decision, first remote CI and direct-GitHub install, and the documented first transfer on a second computer before the `v0.1.0` tag.

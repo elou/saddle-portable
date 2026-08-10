@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { inventoryRuntimeSources } from '../capture/index.js';
-import { createImportPlan, parseRuntimeSelection, scanRuntimes, verifyImport } from '../domain/index.js';
+import { assertImportConsents, createImportPlan, parseRuntimeSelection, scanRuntimes, verifyImport } from '../domain/index.js';
 import { createProfileFromCandidates } from '../onboarding/profile-builder.js';
 import { applyPlan, rollbackTransaction } from '../transaction/index.js';
 
@@ -96,7 +96,7 @@ export function createSetupServer({ token = randomBytes(24).toString('base64url'
       if (url.pathname === '/api/plan') {
         const requestData = importRequest(body);
         const preview = await createImportPlan(requestData);
-        return json(response, 200, { digest: preview.digest, plan: preview.plan });
+        return json(response, 200, { digest: preview.digest, requiredConsents: preview.requiredConsents, plan: preview.plan });
       }
       if (url.pathname === '/api/apply') {
         const requestData = importRequest(body);
@@ -107,14 +107,20 @@ export function createSetupServer({ token = randomBytes(24).toString('base64url'
             currentPlanDigest: preview.digest,
           });
         }
+        const consent = Object.fromEntries((Array.isArray(body.consents) ? body.consents : []).map((id) => [id, true]));
+        assertImportConsents(preview.requiredConsents, consent);
         const stateRoot = requiredAbsolute(body.stateRoot, 'stateRoot');
         const transaction = await applyPlan(preview.plan, {
           targetRoot: requestData.targetRoot,
           stateRoot,
           expectedPlanDigest: body.planDigest,
         });
-        const verification = await verifyImport(requestData);
-        return json(response, 200, { transaction, verification });
+        try {
+          const verification = await verifyImport(requestData);
+          return json(response, 200, { transaction, verification });
+        } catch (error) {
+          return json(response, 200, { transaction, verification: [], verificationError: error.message });
+        }
       }
       if (url.pathname === '/api/doctor') {
         const requestData = importRequest(body);

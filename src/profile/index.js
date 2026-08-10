@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
-import { cp, lstat, mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { cp, lstat, mkdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const KINDS = new Set(['operating-policy', 'session-continuity', 'project-standard', 'capability', 'personal-context', 'integration-declaration']);
@@ -13,7 +13,7 @@ const OPTIONAL_EVENTS = new Set(['tool.before', 'tool.after', 'tool.error', 'sub
 const ROUTE_CAPABILITIES = new Set(['low', 'medium', 'high', 'frontier']);
 const ROUTE_REASONING = new Set(['low', 'medium', 'high']);
 const ANCHOR = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const FORBIDDEN_NAME = /(?:^|[-_.])(transcript|conversation|prompt(?:-history)?|tool[-_.]?(?:input|output|payload|error)|telemetry|credential|credentials|token|secret|private[-_.]?key|cookie|runtime[-_.]?settings?|settings|permission|allowlist|trust[-_.]?grant|mcp|plugin[-_.]?state|notification|cron)(?:$|[-_.])/i;
+const FORBIDDEN_NAME = /(?:^|[-_.])(transcript|conversation|prompt(?:-history)?|tool[-_.]?(?:input|output|payload|error)|telemetry|env(?:ironment)?|credential|credentials|token|secret|private[-_.]?key|cookie|runtime[-_.]?settings?|settings|permission|allowlist|trust[-_.]?grant|mcp|plugin[-_.]?state|notification|cron)(?:$|[-_.])/i;
 const SECRET_CONTENT = /(?:\b(?:api[_-]?key|access[_-]?token|auth(?:orization)?|password|secret|private[_-]?key|cookie)\b\s*[:=]|https?:\/\/[^\s/]+[^\s]*[?&](?:token|api[_-]?key|key|secret|signature|sig|password|credential)=)/i;
 const ABSOLUTE_HOME_CONTENT = /(?:^|[\s"'`(])(?:\/Users\/[^/\s]+|\/home\/[^/\s]+|[A-Za-z]:\\Users\\[^\\\s]+)/;
 
@@ -194,23 +194,33 @@ export async function exportProfile(profileRoot, outputRoot, { consent = {} } = 
   const output = path.resolve(outputRoot);
   if (output === profile.root || output.startsWith(`${profile.root}${path.sep}`)) throw new ProfileError('export output must not be inside the profile root', 'EXPORT_INVALID');
   try {
-    if ((await readdir(output)).length) throw new ProfileError('export output must be empty', 'EXPORT_INVALID');
+    await lstat(output);
+    throw new ProfileError('export output must not already exist', 'EXPORT_INVALID');
   } catch (error) {
-    if (error.code === 'ENOENT') await mkdir(output, { recursive: true });
-    else throw error;
+    if (error.code !== 'ENOENT') throw error;
   }
-  const manifest = structuredClone(profile.manifest);
-  manifest.modules = selected.map(({ absoluteSource, assets, ...module }) => ({ ...module, assets: assets.map(({ absolutePath, ...asset }) => asset) }));
-  await writeFile(path.join(output, 'saddle.profile.json'), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
-  for (const module of selected) {
-    const destination = path.join(output, module.source);
-    await mkdir(path.dirname(destination), { recursive: true });
-    await cp(module.absoluteSource, destination, { dereference: false, errorOnExist: true });
-    for (const asset of module.assets) {
-      const assetDestination = path.join(output, asset.path);
-      await mkdir(path.dirname(assetDestination), { recursive: true });
-      await cp(asset.absolutePath, assetDestination, { dereference: false, errorOnExist: true });
+  const parent = path.dirname(output);
+  await mkdir(parent, { recursive: true });
+  const staging = path.join(parent, `.${path.basename(output)}.saddle-export-${randomUUID()}`);
+  await mkdir(staging, { mode: 0o700 });
+  try {
+    const manifest = structuredClone(profile.manifest);
+    manifest.modules = selected.map(({ absoluteSource, assets, ...module }) => ({ ...module, assets: assets.map(({ absolutePath, ...asset }) => asset) }));
+    await writeFile(path.join(staging, 'saddle.profile.json'), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
+    for (const module of selected) {
+      const destination = path.join(staging, module.source);
+      await mkdir(path.dirname(destination), { recursive: true });
+      await cp(module.absoluteSource, destination, { dereference: false, errorOnExist: true });
+      for (const asset of module.assets) {
+        const assetDestination = path.join(staging, asset.path);
+        await mkdir(path.dirname(assetDestination), { recursive: true });
+        await cp(asset.absolutePath, assetDestination, { dereference: false, errorOnExist: true });
+      }
     }
+    await rename(staging, output);
+  } catch (error) {
+    await rm(staging, { recursive: true, force: true });
+    throw error;
   }
   return { output, modules: selected.map((module) => module.id) };
 }
