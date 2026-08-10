@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Local-first setup and transfer for a runtime-agnostic AI operating profile.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elou/saddle-portable.git"
+  },
+  "bugs": {
+    "url": "https://github.com/elou/saddle-portable/issues"
+  },
+  "homepage": "https://github.com/elou/saddle-portable#readme",
   "type": "module",
   "bin": {
     "saddle": "bin/saddle.js"

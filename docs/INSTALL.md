@@ -13,10 +13,10 @@ The release gate installs the same tarball in a clean temporary project with lif
 
 ## Install from GitHub
 
-After the public repository and `v0.1.0` tag exist, run:
+After the first transfer is verified and `v0.1.0` is tagged, run:
 
 ```sh
-npm install --global github:<owner>/saddle-portable#v0.1.0
+npm install --global github:elou/saddle-portable#v0.1.0
 saddle help
 ```
 
@@ -27,7 +27,7 @@ npm supports GitHub shorthand, full Git URLs, commit references, and semantic-ve
 Release CI verifies the exact GitHub commit before a tag is created. Maintainers can run the same packed-consumer check with:
 
 ```sh
-npm run verify:git-install -- "github:<owner>/saddle-portable#<commit>"
+npm run verify:git-install -- "github:elou/saddle-portable#<commit>"
 ```
 
 ## Update

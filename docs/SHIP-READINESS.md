@@ -22,8 +22,8 @@ This file is the prioritized release ledger for the free self-serve package.
 
 | Requirement | Status |
 | --- | --- |
-| Choose the GitHub owner, final repository name, and visibility | Needs Emily |
-| Add the normalized `repository` field after the URL exists | Pending |
+| Choose the GitHub owner, final repository name, and visibility | Approved: public `elou/saddle-portable` |
+| Add the normalized `repository` field | Complete |
 | Create a signed or annotated `v0.1.0` tag after the first-transfer gate | Pending |
 | Run Node 20 and Node 26 CI on macOS, plus Node 26 on Linux | Workflow and direct-GitHub-install gate ready; first remote run pending |
 | Record package checksum and tarball file list in the release notes | Pending |

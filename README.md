@@ -12,13 +12,13 @@ Install from a packed release:
 npm install --global ./saddle-portable-0.1.0.tgz
 ```
 
-After the GitHub repository is created, install a tagged version with:
+After the first transfer is verified and `v0.1.0` is tagged, install it directly from GitHub with:
 
 ```sh
-npm install --global github:<owner>/saddle-portable#v0.1.0
+npm install --global github:elou/saddle-portable#v0.1.0
 ```
 
-The GitHub owner and public repository URL are release-time values. Saddle has no install, postinstall, or build script.
+Until then, reviewers can install an exact reviewed commit by replacing `v0.1.0` with its full commit SHA. Saddle has no install, postinstall, or build script.
 
 ## Set up a profile
 
