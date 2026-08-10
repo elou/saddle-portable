@@ -76,3 +76,7 @@ Verification:
 - Public CI is prepared for Node 20 and current Node 26 on macOS, plus Node 26 on Linux.
 
 Remaining release gates are the GitHub owner/repository decision, first remote CI and direct-GitHub install, and the documented first transfer on a second computer before the `v0.1.0` tag.
+
+## Direct Git installation gate
+
+Commit `a979407` adds a repeatable clean-consumer verifier to local development and hosted CI. A pinned `git+file` install of that commit exposed the `saddle` executable and public JavaScript API and created a valid neutral profile. This closes the locally testable Git transport risk; the same verifier still needs to pass against the hosted GitHub commit after repository creation.

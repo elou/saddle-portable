@@ -14,6 +14,7 @@ This file is the prioritized release ledger for the free self-serve package.
 | Plan digest, target preflight, failure rollback, and explicit rollback | Transaction and CLI integration suites | Complete |
 | Loopback onboarding UI with per-process request token | Server integration suite | Complete |
 | Packed package installs and exposes `saddle` with scripts disabled | Packed-install suite | Complete |
+| Commit-pinned Git dependency installs in a clean npm consumer | Local `git+file` release gate at `a979407` | Complete |
 | Independent release review has no unresolved code P0 or P1 | Sol High review; 75-test rerun and focused manual reproductions | Complete |
 | First real transfer to a second computer passes apply, first-task continuity, doctor, and rollback | [First transfer](./FIRST-TRANSFER.md) | Not started |
 
@@ -44,5 +45,6 @@ The public package must ship with the README, onboarding, universal profile, pri
 
 - `npm test`: 75 passed.
 - Packed consumer: installed with lifecycle scripts disabled, exposed the `saddle` executable, imported the public JavaScript API, and created a valid profile.
+- Pinned Git consumer: installed commit `a979407` through `git+file`, exposed the executable and public API, and created a valid profile. Hosted CI repeats this check against the exact GitHub commit.
 - Browser rehearsal: personal and restricted items required two unchecked destination confirmations; proposed content and runtime-valid capability frontmatter were visible; Claude and Codex doctor results were exact; rollback verified.
 - Independent review: fresh capability install, capability update and stale-asset removal, unsafe manifest rejection, applied-but-unverified recovery, and rollback reproductions passed with no unresolved code P0 or P1.
