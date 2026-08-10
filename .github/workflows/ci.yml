@@ -29,3 +29,8 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm test
       - run: npm run pack:check
+      - name: Verify direct GitHub install
+        env:
+          SADDLE_GIT_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          SADDLE_GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: npm run verify:git-install -- "github:${SADDLE_GIT_REPOSITORY}#${SADDLE_GIT_SHA}"

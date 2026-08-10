@@ -24,7 +24,7 @@ This file is the prioritized release ledger for the free self-serve package.
 | Choose the GitHub owner, final repository name, and visibility | Needs Emily |
 | Add the normalized `repository` field after the URL exists | Pending |
 | Create a signed or annotated `v0.1.0` tag after the first-transfer gate | Pending |
-| Run Node 20 and Node 26 CI on macOS, plus Node 26 on Linux | Workflow ready; first remote run pending |
+| Run Node 20 and Node 26 CI on macOS, plus Node 26 on Linux | Workflow and direct-GitHub-install gate ready; first remote run pending |
 | Record package checksum and tarball file list in the release notes | Pending |
 | Confirm the unscoped npm name or select an owned scope before registry publication | `saddle-portable` returned `E404` on 2026-08-09. Ownership is not reserved. |
 

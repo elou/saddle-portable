@@ -27,6 +27,7 @@
     "test:integration": "node --test test/integration/*.test.js",
     "test:privacy": "node --test test/privacy/*.test.js",
     "test:install": "node --test test/install/*.test.js",
+    "verify:git-install": "node scripts/verify-github-install.mjs",
     "pack:check": "npm pack --dry-run"
   },
   "keywords": [
