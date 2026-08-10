@@ -1,0 +1,35 @@
+{
+  "name": "saddle-portable",
+  "version": "0.1.0",
+  "description": "Local-first setup and transfer for a runtime-agnostic AI operating profile.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "saddle": "./bin/saddle.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "schemas/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "test:unit": "node --test test/unit",
+    "test:integration": "node --test test/integration",
+    "test:privacy": "node --test test/privacy",
+    "test:install": "node --test test/install",
+    "pack:check": "npm pack --dry-run"
+  },
+  "keywords": [
+    "ai-agents",
+    "configuration",
+    "portable-profile",
+    "saddle"
+  ]
+}
+
