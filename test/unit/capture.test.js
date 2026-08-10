@@ -154,7 +154,7 @@ test('rejects backtick-wrapped lowercase dollar-skill invocations without blocki
 test('marks imperative undeclared executable guidance as needing attention without rejecting neutral path examples', async () => {
   const root = await runtime({
     'AGENTS.md': `## External action
-Open it: \`roughdraft open "/absolute/path/to/file.md"\`
+2. Open it: \`roughdraft open "/absolute/path/to/file.md"\`
 ## Neutral example
 This prose documents the path \`/absolute/path/to/file.md\` without instructing execution.
 `,
