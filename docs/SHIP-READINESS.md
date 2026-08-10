@@ -37,7 +37,7 @@ This file is the prioritized release ledger for the free self-serve package.
 - Add an update preview that compares neutral profile versions.
 - Add credential-free integration declarations after a portable integration contract is specified and tested.
 - Add optional crash-safe cleanup for expired transaction backups.
-- Add a doctor-assisted recovery path for incomplete customization reservations left by process interruption.
+- Add optional automatic discovery and expiry guidance for incomplete customization reservations; explicit digest-safe recovery already ships.
 - Add team coordination, shared policy, authentication, billing, and organization controls as a separate paid layer.
 
 ## Required documentation
@@ -48,12 +48,12 @@ The public package must ship with the README, onboarding, universal profile, pri
 
 - `npm test`: 107 passed.
 - Packed consumer: installed with lifecycle scripts disabled, exposed the `saddle` executable, imported the public JavaScript API, and created a valid profile.
-- Pinned Git consumer: installed `github:elou/saddle-portable#71908d7`, exposed the executable and public API, and created a valid profile. Hosted CI repeated the exact-commit check on Node 20 and 26 for macOS and Node 26 for Linux.
+- Pinned Git consumer: installed `github:elou/saddle-portable#cedd67e`, exposed the executable and public API, and created a valid profile. Hosted CI repeated the exact-commit check on Node 20 and 26 for macOS and Node 26 for Linux.
 - Real-source browser canary: runtime-only commands, undeclared executable workflows, duplicate capability sources, and provider-specific capability assets stayed out of the universal profile. One neutral `CAPABILITY.md` projected to both runtimes with valid frontmatter.
 - Disposable destination: plan preview, apply, exact doctor for Claude and Codex, provider-asset absence, and rollback passed for transaction `4c1cff72-695b-476d-b1dd-896660630806`.
 - Independent review: fresh capability install, capability update and stale-asset removal, unsafe manifest rejection, applied-but-unverified recovery, and rollback reproductions passed with no unresolved code P0 or P1.
 - Customization browser acceptance: added separate personal and neutral capability entries, reviewed every proposed file and digest, preserved the source profile, created a valid derived profile, and enforced the personal module's consent on export.
 - Customization adversarial review: symlinked output parents, destination races, foreign files, source drift, exact-byte retention, interrupted publication recovery, forged recovery paths, common credentials, runtime wrappers, integration authoring, and expressive personal model references were independently reproduced and gated. No P0 or P1 remains.
-- Latest code checkpoint: commit `ecc069d` installed from GitHub into a clean consumer with its executable, public API, and profile creation intact; hosted CI passed on Node 20 and 26 for macOS and Node 26 for Linux in [run 31351757958](https://github.com/elou/saddle-portable/actions/runs/31351757958).
+- Latest release-candidate checkpoint: commit `cedd67e` installed from GitHub into a clean consumer with its executable, public API, and profile creation intact; hosted CI passed on Node 20 and 26 for macOS and Node 26 for Linux in [run 31351818522](https://github.com/elou/saddle-portable/actions/runs/31351818522).
 
 The remaining P0 is behavioral evidence on a clean physical computer: install, apply, first task, context-reset continuity, doctor, and rollback. Personal context remains optional during onboarding, while ongoing customization supports any number of independently consented personal modules.
