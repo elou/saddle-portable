@@ -1,16 +1,28 @@
 {
   "name": "saddle-portable",
   "version": "0.1.0",
-  "description": "Local-first setup and transfer for a runtime-agnostic AI operating profile.",
+  "description": "Local-first setup, customization, and transfer for a runtime-agnostic AI operating profile.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elou/saddle-portable.git"
+  },
+  "bugs": {
+    "url": "https://github.com/elou/saddle-portable/issues"
+  },
+  "homepage": "https://github.com/elou/saddle-portable#readme",
   "type": "module",
   "bin": {
-    "saddle": "./bin/saddle.js"
+    "saddle": "bin/saddle.js"
   },
   "files": [
     "bin/",
     "src/",
     "schemas/",
+    "docs/",
+    "ARCHITECTURE.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
     "README.md",
     "LICENSE"
   ],
@@ -18,11 +30,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test",
-    "test:unit": "node --test test/unit",
-    "test:integration": "node --test test/integration",
-    "test:privacy": "node --test test/privacy",
-    "test:install": "node --test test/install",
+    "test": "node --test test/unit/*.test.js test/privacy/*.test.js test/integration/*.test.js test/install/*.test.js",
+    "test:unit": "node --test test/unit/*.test.js",
+    "test:integration": "node --test test/integration/*.test.js",
+    "test:privacy": "node --test test/privacy/*.test.js",
+    "test:install": "node --test test/install/*.test.js",
+    "verify:git-install": "node scripts/verify-github-install.mjs",
     "pack:check": "npm pack --dry-run"
   },
   "keywords": [
@@ -30,6 +43,14 @@
     "configuration",
     "portable-profile",
     "saddle"
-  ]
+  ],
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "author": ""
 }
-

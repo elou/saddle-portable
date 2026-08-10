@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Saddle setup</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to setup</a>
+    <header class="masthead">
+      <div class="wordmark" aria-label="Saddle Portable">
+        <span class="mark" aria-hidden="true">S</span>
+        <span>Saddle</span>
+      </div>
+      <div class="local-status"><span class="status-dot" aria-hidden="true"></span>Local session</div>
+    </header>
+
+    <main id="main" class="shell">
+      <nav class="progress" id="setup-progress" aria-label="Setup progress">
+        <ol>
+          <li data-step="1" aria-current="step"><span>01</span> Welcome</li>
+          <li data-step="2"><span>02</span> Assistants</li>
+          <li data-step="3"><span>03</span> Instructions</li>
+          <li data-step="4"><span>04</span> Review</li>
+          <li data-step="5"><span>05</span> Done</li>
+        </ol>
+      </nav>
+
+      <nav class="progress" id="customize-progress" aria-label="Customization progress" hidden>
+        <ol>
+          <li data-custom-step="1" aria-current="step"><span>01</span> Compose</li>
+          <li data-custom-step="2"><span>02</span> Review</li>
+          <li data-custom-step="3"><span>03</span> Saved</li>
+        </ol>
+      </nav>
+
+      <section class="content" id="setup-content" aria-live="polite">
+        <div class="eyebrow" id="step-label">Step 1 of 5</div>
+
+        <article class="step is-active" data-panel="1">
+          <h1>Set up Claude and Codex the way you work.</h1>
+          <p class="lede">Saddle can put the same instructions into Claude and Codex on this Mac. Everything stays on this computer.</p>
+          <dl class="promise-list">
+            <div><dt>Before any write</dt><dd>You will see the exact files and conflicts.</dd></div>
+            <div><dt>Never transferred</dt><dd>Credentials, transcripts, trust grants, and runtime permission state.</dd></div>
+            <div><dt>After setup</dt><dd>Saddle checks the files it changed. You can undo this setup while those files stay unchanged.</dd></div>
+          </dl>
+          <div class="actions"><button class="button button-primary" data-next>Continue to choose assistants</button></div>
+        </article>
+
+        <article class="step" data-panel="2" hidden>
+          <h1>Which assistants are you setting up?</h1>
+          <p class="lede">Saddle checks the Claude and Codex folders in this Mac account. It will not install Claude or Codex.</p>
+          <label class="field-label" for="target-root">Mac account folder</label>
+          <div class="field-row">
+            <input id="target-root" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/Users/you">
+            <button id="pick-target-root" class="button button-secondary" type="button">Choose folder</button>
+            <button id="scan-button" class="button button-secondary">Check folders</button>
+          </div>
+          <div id="target-root-error" aria-live="polite"></div>
+          <div id="scan-state" class="result-list" aria-live="polite"></div>
+          <fieldset class="runtime-choice">
+            <legend>Set up these assistants</legend>
+            <label><input type="checkbox" name="runtime" value="claude" checked> <span>Claude</span></label>
+            <label><input type="checkbox" name="runtime" value="codex" checked> <span>Codex</span></label>
+          </fieldset>
+          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" data-next disabled id="runtime-next">Continue with selected assistants</button></div>
+        </article>
+
+        <article class="step" data-panel="3" hidden>
+          <h1>Where are your instructions coming from?</h1>
+          <p class="lede">Find instructions already on this Mac, or choose a Saddle setup brought from another computer.</p>
+          <div class="mode-switch" role="radiogroup" aria-label="Instruction source">
+            <label><input type="radio" name="profile-mode" value="capture" checked> Find instructions on this Mac</label>
+            <label><input type="radio" name="profile-mode" value="existing"> Use a setup from another computer</label>
+          </div>
+
+          <div id="capture-mode">
+            <label><span class="field-label">Name this setup</span><input id="profile-name" class="field" value="My setup" autocomplete="off"></label>
+            <input id="profile-id" type="hidden" value="my-setup">
+            <label class="field-label" for="capture-output">Save this new setup folder to</label>
+            <div class="field-row">
+              <input id="capture-output" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/Users/you/saddle-setups/my-setup">
+              <button id="pick-capture-output" class="button button-secondary" type="button">Choose folder</button>
+            </div>
+            <div id="capture-output-error" aria-live="polite"></div>
+            <button id="inventory-button" class="button button-secondary inline-action">Find instructions on this Mac</button>
+            <div id="inventory-state" class="candidate-list"></div>
+            <aside class="notice"><strong>Choose what to bring.</strong> Safe, general instructions start selected. Personal details, scripts, unsafe content, and files made by an assistant are never selected automatically.</aside>
+          </div>
+
+          <div id="existing-mode" hidden>
+            <label class="field-label" for="profile-root">Choose your Saddle setup folder</label>
+            <div class="field-row">
+              <input id="profile-root" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/path/to/saddle-setup">
+              <button id="pick-profile-root" class="button button-secondary" type="button">Choose folder</button>
+            </div>
+            <div id="profile-root-error" aria-live="polite"></div>
+            <aside class="notice">This is the folder copied from your other computer. Saddle will show every file before installing anything.</aside>
+          </div>
+          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" id="preview-button">Save these instructions and review changes</button></div>
+        </article>
+
+        <article class="step" data-panel="4" hidden>
+          <h1>Review what Saddle will change.</h1>
+          <p class="lede">Check the files Saddle will add or update before it changes this Mac.</p>
+          <div id="preview-state" class="preview"></div>
+          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" id="apply-button" disabled>Install these instructions</button></div>
+        </article>
+
+        <article class="step" data-panel="5" hidden>
+          <div class="success-mark" aria-hidden="true">✓</div>
+          <h1 id="finish-title">Your instruction files are ready.</h1>
+          <p class="lede" id="finish-copy">Saddle installed and checked the files for Claude and Codex. It did not install or sign in to either app.</p>
+          <dl class="finish-details" id="finish-details"></dl>
+          <p class="first-task">Next, install or open one selected assistant and ask it to explain the instructions Saddle added.</p>
+          <div class="actions"><button class="button button-secondary" id="doctor-button">Check installed files</button><button class="button button-ghost danger" id="rollback-button">Undo this setup</button></div>
+          <div id="recovery-state" class="notice" hidden></div>
+        </article>
+      </section>
+
+      <section class="content" id="customize-content" aria-live="polite" hidden>
+        <article class="step is-active" id="customize-compose">
+          <div class="eyebrow">Customize profile</div>
+          <h1>Make the profile yours.</h1>
+          <p class="lede">Create a new profile from the current one. Keep what still fits, remove what does not, and add context or working rules in your own language.</p>
+
+          <dl class="preview-meta" id="customize-source-meta"></dl>
+
+          <div class="two-fields">
+            <label><span class="field-label">New profile name</span><input id="customize-profile-name" class="field" autocomplete="off"></label>
+            <label><span class="field-label">Profile id</span><input id="customize-profile-id" class="field" autocomplete="off" spellcheck="false"></label>
+          </div>
+          <label class="field-label" for="customize-output">Save the new profile to</label>
+          <input id="customize-output" class="field" type="text" autocomplete="off" spellcheck="false">
+
+          <section class="customize-section" aria-labelledby="existing-modules-title">
+            <h2 id="existing-modules-title">Keep from the current profile</h2>
+            <p>Required continuity stays enabled. Everything else can be removed from the new version without changing the source profile.</p>
+            <div id="customize-modules" class="module-list"></div>
+          </section>
+
+          <section class="customize-section" aria-labelledby="new-entries-title">
+            <h2 id="new-entries-title">Add your own entries</h2>
+            <p>Personal context can use any label or category. Each personal entry receives its own preview and consent boundary.</p>
+            <div id="customize-entries"></div>
+            <button class="button button-secondary inline-action" id="add-custom-entry" type="button">Add an entry</button>
+          </section>
+
+          <aside class="notice"><strong>No preset ceiling.</strong> Onboarding stays short; customization can grow with the person. The active profile is never edited in place.</aside>
+          <div id="customize-compose-error" aria-live="polite"></div>
+          <div class="actions"><button class="button button-primary" id="customize-preview-button">Review new profile</button></div>
+        </article>
+
+        <article class="step" id="customize-review" hidden>
+          <div class="eyebrow">Review</div>
+          <h1>Check the profile before saving.</h1>
+          <p class="lede">This preview is bound to the source profile, your draft, and the empty output location. Changing any of them requires a new preview.</p>
+          <div id="customize-preview-state"></div>
+          <div class="actions"><button class="button button-ghost" id="customize-back-button">Back</button><button class="button button-primary" id="customize-apply-button">Create this profile</button></div>
+        </article>
+
+        <article class="step" id="customize-finish" hidden>
+          <div class="success-mark" aria-hidden="true">✓</div>
+          <div class="eyebrow">Saved</div>
+          <h1>Your new profile is ready.</h1>
+          <p class="lede">The source profile is unchanged. Use setup on any computer to preview where this derived profile would be installed.</p>
+          <dl class="finish-details" id="customize-finish-details"></dl>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

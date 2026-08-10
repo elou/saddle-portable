@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            node: 20.x
+          - os: macos-latest
+            node: 26.x
+          - os: ubuntu-latest
+            node: 26.x
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - run: npm run pack:check
+      - name: Verify direct GitHub install
+        env:
+          SADDLE_GIT_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          SADDLE_GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: npm run verify:git-install -- "github:${SADDLE_GIT_REPOSITORY}#${SADDLE_GIT_SHA}"

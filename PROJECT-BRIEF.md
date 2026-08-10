@@ -56,11 +56,10 @@ The same engine will serve a local Saddle onboarding interface after the CLI ver
 - Dry-run shows deterministic operations without changing the target filesystem.
 - An injected mid-apply failure restores the original filesystem exactly.
 - Doctor distinguishes native, instruction-fallback, and unsupported lifecycle support.
-- A first-task fixture recovers the latest durable session note after transfer.
+- A first-task fixture follows the transferred continuity procedure and recovers a separately copied or reconnected durable session note without treating session history as profile data.
 - Unit, integration, privacy, rollback, packed-install, and clean-profile tests pass.
 - An independent reviewer finds no unresolved high-severity portability, privacy, or data-loss defect.
 
 ## Delivery mode
 
 This is a large exploratory change. Work remains on a dedicated branch and will be offered as an unmerged draft pull request after the acceptance gates pass.
-
