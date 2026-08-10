@@ -15,7 +15,7 @@ This file is the prioritized release ledger for the free self-serve package.
 | Loopback onboarding UI with per-process request token | Server integration suite | Complete |
 | Destination-agnostic customizer creates a new profile from an exact preview without mutating its source | Customizer unit, CLI, server, privacy, browser, recovery, and independent adversarial review | Complete |
 | Packed package installs and exposes `saddle` with scripts disabled | Packed-install suite | Complete |
-| Commit-pinned Git dependency installs in a clean npm consumer | Exact GitHub install at `71908d7` | Complete |
+| Commit-pinned Git dependency installs in a clean npm consumer | Exact GitHub install on the latest customization code checkpoint | Complete |
 | Independent release review has no unresolved code P0 or P1 | Sol High review plus real-source semantic canaries | Complete |
 | First real transfer to any clean test computer passes apply, first-task continuity, doctor, and rollback | Source capture and disposable-machine pass; [transfer checklist](./FIRST-TRANSFER.md) remains | In progress |
 
@@ -26,7 +26,7 @@ This file is the prioritized release ledger for the free self-serve package.
 | Choose the GitHub owner, final repository name, and visibility | Approved: public `elou/saddle-portable` |
 | Add the normalized `repository` field | Complete |
 | Create a signed or annotated `v0.1.0` tag after the first-transfer gate | Pending |
-| Run Node 20 and Node 26 CI on macOS, plus Node 26 on Linux | Complete at `71908d7`: [run 31348641637](https://github.com/elou/saddle-portable/actions/runs/31348641637) |
+| Run Node 20 and Node 26 CI on macOS, plus Node 26 on Linux | Complete on the current draft-PR branch; the PR records the latest run |
 | Record package checksum and tarball file list in the release notes | Pending at tag creation; the archive checksum cannot be embedded in the archive itself without changing it |
 | Confirm the unscoped npm name or select an owned scope before registry publication | `saddle-portable` returned `E404` on 2026-08-09. Ownership is not reserved. |
 
@@ -54,5 +54,6 @@ The public package must ship with the README, onboarding, universal profile, pri
 - Independent review: fresh capability install, capability update and stale-asset removal, unsafe manifest rejection, applied-but-unverified recovery, and rollback reproductions passed with no unresolved code P0 or P1.
 - Customization browser acceptance: added separate personal and neutral capability entries, reviewed every proposed file and digest, preserved the source profile, created a valid derived profile, and enforced the personal module's consent on export.
 - Customization adversarial review: symlinked output parents, destination races, foreign files, source drift, exact-byte retention, interrupted publication recovery, forged recovery paths, common credentials, runtime wrappers, integration authoring, and expressive personal model references were independently reproduced and gated. No P0 or P1 remains.
+- Latest code checkpoint: commit `ecc069d` installed from GitHub into a clean consumer with its executable, public API, and profile creation intact; hosted CI passed on Node 20 and 26 for macOS and Node 26 for Linux in [run 31351757958](https://github.com/elou/saddle-portable/actions/runs/31351757958).
 
 The remaining P0 is behavioral evidence on a clean physical computer: install, apply, first task, context-reset continuity, doctor, and rollback. Personal context remains optional during onboarding, while ongoing customization supports any number of independently consented personal modules.
