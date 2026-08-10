@@ -22,6 +22,9 @@ test('packed package installs without scripts and exposes a working saddle execu
   assert.ok(packagedPaths.includes('bin/saddle.js'));
   assert.ok(packagedPaths.includes('schemas/profile-manifest.schema.json'));
   assert.ok(packagedPaths.includes('src/transaction/index.js'));
+  assert.ok(packagedPaths.includes('src/onboarding/customizer.js'));
+  assert.ok(packagedPaths.includes('src/onboarding/customizer-publish.js'));
+  assert.ok(packagedPaths.includes('src/security/content-policy.js'));
   assert.ok(!packagedPaths.some((file) => file.startsWith('test/') || file.startsWith('sessions/')));
 
   await exec('npm', ['init', '-y'], { cwd: workspace });
@@ -35,7 +38,7 @@ test('packed package installs without scripts and exposes a working saddle execu
   const imported = await exec(process.execPath, [
     '--input-type=module',
     '--eval',
-    'const api = await import("saddle-portable"); if (typeof api.loadProfile !== "function") process.exit(1);',
+    'const api = await import("saddle-portable"); if (typeof api.loadProfile !== "function" || typeof api.previewCustomization !== "function" || typeof api.applyCustomization !== "function") process.exit(1);',
   ], { cwd: workspace });
   assert.equal(imported.stderr, '');
 

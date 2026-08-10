@@ -19,7 +19,7 @@
     </header>
 
     <main id="main" class="shell">
-      <nav class="progress" aria-label="Setup progress">
+      <nav class="progress" id="setup-progress" aria-label="Setup progress">
         <ol>
           <li data-step="1" aria-current="step"><span>01</span> Welcome</li>
           <li data-step="2"><span>02</span> Runtimes</li>
@@ -29,7 +29,15 @@
         </ol>
       </nav>
 
-      <section class="content" aria-live="polite">
+      <nav class="progress" id="customize-progress" aria-label="Customization progress" hidden>
+        <ol>
+          <li data-custom-step="1" aria-current="step"><span>01</span> Compose</li>
+          <li data-custom-step="2"><span>02</span> Review</li>
+          <li data-custom-step="3"><span>03</span> Saved</li>
+        </ol>
+      </nav>
+
+      <section class="content" id="setup-content" aria-live="polite">
         <div class="eyebrow" id="step-label">Step 1 of 5</div>
 
         <article class="step is-active" data-panel="1">
@@ -70,11 +78,11 @@
 
           <div id="capture-mode">
             <div class="two-fields">
-              <label><span class="field-label">Profile name</span><input id="profile-name" class="field" value="My Terra" autocomplete="off"></label>
-              <label><span class="field-label">Profile id</span><input id="profile-id" class="field" value="my-terra" autocomplete="off" spellcheck="false"></label>
+              <label><span class="field-label">Profile name</span><input id="profile-name" class="field" value="My profile" autocomplete="off"></label>
+              <label><span class="field-label">Profile id</span><input id="profile-id" class="field" value="my-profile" autocomplete="off" spellcheck="false"></label>
             </div>
             <label class="field-label" for="capture-output">Save the neutral profile to</label>
-            <input id="capture-output" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/Users/you/saddle-profiles/my-terra">
+            <input id="capture-output" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/Users/you/saddle-profiles/my-profile">
             <button id="inventory-button" class="button button-secondary inline-action">Inventory authored guidance</button>
             <div id="inventory-state" class="candidate-list"></div>
           </div>
@@ -101,6 +109,56 @@
           <dl class="finish-details" id="finish-details"></dl>
           <div class="actions"><button class="button button-secondary" id="doctor-button">Run doctor</button><button class="button button-ghost danger" id="rollback-button">Roll back</button></div>
           <div id="recovery-state" class="notice" hidden></div>
+        </article>
+      </section>
+
+      <section class="content" id="customize-content" aria-live="polite" hidden>
+        <article class="step is-active" id="customize-compose">
+          <div class="eyebrow">Customize profile</div>
+          <h1>Make the profile yours.</h1>
+          <p class="lede">Create a new profile from the current one. Keep what still fits, remove what does not, and add context or working rules in your own language.</p>
+
+          <dl class="preview-meta" id="customize-source-meta"></dl>
+
+          <div class="two-fields">
+            <label><span class="field-label">New profile name</span><input id="customize-profile-name" class="field" autocomplete="off"></label>
+            <label><span class="field-label">Profile id</span><input id="customize-profile-id" class="field" autocomplete="off" spellcheck="false"></label>
+          </div>
+          <label class="field-label" for="customize-output">Save the new profile to</label>
+          <input id="customize-output" class="field" type="text" autocomplete="off" spellcheck="false">
+
+          <section class="customize-section" aria-labelledby="existing-modules-title">
+            <h2 id="existing-modules-title">Keep from the current profile</h2>
+            <p>Required continuity stays enabled. Everything else can be removed from the new version without changing the source profile.</p>
+            <div id="customize-modules" class="module-list"></div>
+          </section>
+
+          <section class="customize-section" aria-labelledby="new-entries-title">
+            <h2 id="new-entries-title">Add your own entries</h2>
+            <p>Personal context can use any label or category. Each personal entry receives its own preview and consent boundary.</p>
+            <div id="customize-entries"></div>
+            <button class="button button-secondary inline-action" id="add-custom-entry" type="button">Add an entry</button>
+          </section>
+
+          <aside class="notice"><strong>No preset ceiling.</strong> Onboarding stays short; customization can grow with the person. The active profile is never edited in place.</aside>
+          <div id="customize-compose-error" aria-live="polite"></div>
+          <div class="actions"><button class="button button-primary" id="customize-preview-button">Review new profile</button></div>
+        </article>
+
+        <article class="step" id="customize-review" hidden>
+          <div class="eyebrow">Review</div>
+          <h1>Check the profile before saving.</h1>
+          <p class="lede">This preview is bound to the source profile, your draft, and the empty output location. Changing any of them requires a new preview.</p>
+          <div id="customize-preview-state"></div>
+          <div class="actions"><button class="button button-ghost" id="customize-back-button">Back</button><button class="button button-primary" id="customize-apply-button">Create this profile</button></div>
+        </article>
+
+        <article class="step" id="customize-finish" hidden>
+          <div class="success-mark" aria-hidden="true">✓</div>
+          <div class="eyebrow">Saved</div>
+          <h1>Your new profile is ready.</h1>
+          <p class="lede">The source profile is unchanged. Use setup on any computer to preview where this derived profile would be installed.</p>
+          <dl class="finish-details" id="customize-finish-details"></dl>
         </article>
       </section>
     </main>

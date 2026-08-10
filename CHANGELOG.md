@@ -14,4 +14,8 @@
 - Added exact content and module visibility in preview, preview-digest enforcement, transactional apply, verification, doctor, stale managed-asset cleanup, and drift-safe rollback.
 - Added a token-protected loopback onboarding interface and headless CLI.
 - Grouped onboarding choices into recommended foundation, optional universal capabilities, personalization, and collapsed attention items.
+- Added destination-agnostic profile customization as a separate workflow from onboarding.
+- Added immutable derived profiles with digest-bound previews, retained-module controls, and unlimited user-labeled personal context, operating policy, project standards, and prose capabilities.
+- Kept personal and restricted consent at the individual module level so privacy controls do not narrow personalization.
+- Added exact per-file customization review, shared secret/runtime-content policy checks, no-overwrite manifest-last publication, and digest-safe interrupted-publication recovery.
 - Added unit, privacy, integration, packed-install, browser, and rollback verification.

@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 import { inventoryRuntimeSources } from '../capture/index.js';
 import { assertImportConsents, createImportPlan, parseRuntimeSelection, scanRuntimes, verifyImport } from '../domain/index.js';
+import { applyCustomization, previewCustomization } from '../onboarding/customizer.js';
 import { createProfileFromCandidates } from '../onboarding/profile-builder.js';
+import { loadProfile } from '../profile/index.js';
 import { applyPlan, rollbackTransaction } from '../transaction/index.js';
 
 const assetRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), 'assets');
@@ -16,7 +18,12 @@ const assets = new Map([
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
 ]);
 
-export function createSetupServer({ token = randomBytes(24).toString('base64url') } = {}) {
+export function createSetupServer({
+  token = randomBytes(24).toString('base64url'),
+  initialState,
+  config = { mode: 'setup' },
+} = {}) {
+  const setupConfig = normalizeSetupConfig(config, initialState);
   let listener;
   const server = http.createServer(async (request, response) => {
     try {
@@ -41,6 +48,11 @@ export function createSetupServer({ token = randomBytes(24).toString('base64url'
         });
       }
 
+      if (request.method === 'GET' && url.pathname === '/api/config') {
+        if (!authorized(request, url, token)) return forbidden(response);
+        return json(response, 200, await publicSetupConfig(setupConfig));
+      }
+
       if (request.method !== 'POST' || !url.pathname.startsWith('/api/')) {
         return json(response, 404, { error: 'Not found.' });
       }
@@ -53,31 +65,31 @@ export function createSetupServer({ token = randomBytes(24).toString('base64url'
         return json(response, 200, { targetRoot, results: await scanRuntimes({ targetRoot, runtimes }) });
       }
       if (url.pathname === '/api/inventory') {
-        const targetRoot = requiredAbsolute(body.targetRoot, 'targetRoot');
+        const sourceRoot = sourceRootRequest(body);
         const runtimes = parseRuntimeSelection(body.runtimes?.join?.(',') ?? body.runtimes);
         const inventories = [];
         for (const runtime of runtimes) {
           try {
             inventories.push({
               runtime,
-              runtimeRoot: path.join(targetRoot, `.${runtime}`),
-              ...await inventoryRuntimeSources({ runtime, runtimeRoot: path.join(targetRoot, `.${runtime}`) }),
+              runtimeRoot: path.join(sourceRoot, `.${runtime}`),
+              ...await inventoryRuntimeSources({ runtime, runtimeRoot: path.join(sourceRoot, `.${runtime}`) }),
             });
           } catch (error) {
             if (error?.code !== 'ENOENT') throw error;
-            inventories.push({ runtime, runtimeRoot: path.join(targetRoot, `.${runtime}`), candidates: [], warnings: [] });
+            inventories.push({ runtime, runtimeRoot: path.join(sourceRoot, `.${runtime}`), candidates: [], warnings: [] });
           }
         }
-        return json(response, 200, { targetRoot, inventories });
+        return json(response, 200, { sourceRoot, inventories });
       }
       if (url.pathname === '/api/capture') {
-        const targetRoot = requiredAbsolute(body.targetRoot, 'targetRoot');
+        const sourceRoot = sourceRootRequest(body);
         const outputRoot = requiredAbsolute(body.outputRoot, 'outputRoot');
         const selections = Array.isArray(body.selections) ? body.selections : [];
         const requestedRuntimes = parseRuntimeSelection(selections.map((item) => item.runtime).join(','));
         const sources = [];
         for (const runtime of requestedRuntimes) {
-          const runtimeRoot = path.join(targetRoot, `.${runtime}`);
+          const runtimeRoot = path.join(sourceRoot, `.${runtime}`);
           const inventory = await inventoryRuntimeSources({ runtime, runtimeRoot });
           const byId = new Map(inventory.candidates.map((candidate) => [candidate.id, candidate]));
           for (const selection of selections.filter((item) => item.runtime === runtime)) {
@@ -92,6 +104,32 @@ export function createSetupServer({ token = randomBytes(24).toString('base64url'
           profile: body.profile,
         });
         return json(response, 200, result);
+      }
+      if (url.pathname === '/api/customize/preview') {
+        const requestData = customizationRequest(body);
+        const { digest, plan } = await previewCustomization(requestData);
+        return json(response, 200, { digest, plan });
+      }
+      if (url.pathname === '/api/customize/apply') {
+        const requestData = customizationRequest(body);
+        if (typeof body.previewDigest !== 'string' || !body.previewDigest) {
+          throw new RequestError('previewDigest is required.');
+        }
+        const preview = await previewCustomization(requestData);
+        if (body.previewDigest !== preview.digest) {
+          return json(response, 409, {
+            error: 'The profile or draft changed after preview. Review a new preview before applying.',
+            currentPreviewDigest: preview.digest,
+          });
+        }
+        const result = await applyCustomization({
+          ...requestData,
+          expectedPreviewDigest: body.previewDigest,
+        });
+        return json(response, 200, {
+          ...result,
+          previewDigest: result.previewDigest ?? result.digest,
+        });
       }
       if (url.pathname === '/api/plan') {
         const requestData = importRequest(body);
@@ -175,6 +213,51 @@ function importRequest(body) {
     profileRoot: requiredAbsolute(body.profileRoot, 'profileRoot'),
     targetRoot: requiredAbsolute(body.targetRoot, 'targetRoot'),
     runtimes: parseRuntimeSelection(body.runtimes?.join?.(',') ?? body.runtimes),
+  };
+}
+
+function customizationRequest(body) {
+  return {
+    profileRoot: requiredAbsolute(body.profileRoot, 'profileRoot'),
+    outRoot: requiredAbsolute(body.outRoot, 'outRoot'),
+    draft: body.draft,
+  };
+}
+
+function sourceRootRequest(body) {
+  return requiredAbsolute(body.sourceRoot ?? body.targetRoot, body.sourceRoot === undefined ? 'targetRoot' : 'sourceRoot');
+}
+
+function normalizeSetupConfig(config, initialState) {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) throw new TypeError('config must be an object.');
+  const mode = config.mode ?? 'setup';
+  if (mode !== 'setup' && mode !== 'customize') throw new TypeError('config.mode must be setup or customize.');
+  const normalized = { mode };
+  if (mode === 'customize') {
+    normalized.profileRoot = requiredAbsolute(config.profileRoot, 'config.profileRoot');
+    normalized.outRoot = requiredAbsolute(config.outRoot, 'config.outRoot');
+  }
+  if (initialState !== undefined) normalized.initialState = structuredClone(initialState);
+  return normalized;
+}
+
+async function publicSetupConfig(config) {
+  if (config.mode !== 'customize') return config;
+  const loaded = await loadProfile(config.profileRoot);
+  const required = new Set(Object.values(loaded.manifest.lifecycle).map((entry) => entry.module));
+  return {
+    mode: config.mode,
+    profileRoot: config.profileRoot,
+    outRoot: config.outRoot,
+    profile: {
+      id: loaded.manifest.profile.id,
+      name: loaded.manifest.profile.name,
+      version: loaded.manifest.profile.version,
+      modules: loaded.manifest.modules.map(({ id, kind, sensitivity, enabled }) => ({
+        id, kind, sensitivity, enabled, required: required.has(id),
+      })),
+    },
+    ...(config.initialState === undefined ? {} : { initialState: config.initialState }),
   };
 }
 

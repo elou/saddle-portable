@@ -189,6 +189,15 @@ test('excludes generated, secret-bearing, transcript, settings, and absolute-hom
   await assert.rejects(readCandidate(candidates[0], { runtimeRoot: root }), /not selectable/);
 });
 
+test('excludes high-signal credentials and runtime-bound guidance from portable capture', async () => {
+  const root = await runtime({
+    'AGENTS.md': `## GitHub credential\n${['gh', 'p_', 'abcdefghijklmnopqrstuvwx'].join('')}\n## Slack credential\n${['xo', 'xb-', '1234567890-', 'abcdefghijklmnop'].join('')}\n## Private material\n-----BEGIN PRIVATE KEY-----\n## MCP connection\nConfigure the Linear MCP connection.\n## Runtime configuration\nWrite config.toml under model_reasoning_effort.\n`,
+    'skills/runtime-reference/SKILL.md': '# Runtime reference\nRead SKILL.md before acting.\n',
+  });
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'codex', runtimeRoot: root });
+  for (const candidate of candidates) assert.equal(candidate.selectable, false, `${candidate.source} should not be selectable`);
+});
+
 test('skips symlink escapes, binary and large content without writes', async () => {
   const root = await runtime({ 'CLAUDE.md': Buffer.from([0, 1, 2]), 'skills/a/SKILL.md': 'x', 'skills/a/large.txt': 'x'.repeat(256 * 1024 + 1) });
   const outside = path.join(tmpdir(), `capture-outside-${Date.now()}`); await writeFile(outside, 'outside'); await symlink(outside, path.join(root, 'skills/a/link.txt'));

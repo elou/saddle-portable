@@ -13,10 +13,11 @@ This file is the prioritized release ledger for the free self-serve package.
 | Managed runtime projections preserve unrelated global instructions | Adapter regression suite | Complete |
 | Plan digest, target preflight, failure rollback, and explicit rollback | Transaction and CLI integration suites | Complete |
 | Loopback onboarding UI with per-process request token | Server integration suite | Complete |
+| Destination-agnostic customizer creates a new profile from an exact preview without mutating its source | Customizer unit, CLI, server, privacy, browser, recovery, and independent adversarial review | Complete |
 | Packed package installs and exposes `saddle` with scripts disabled | Packed-install suite | Complete |
 | Commit-pinned Git dependency installs in a clean npm consumer | Exact GitHub install at `71908d7` | Complete |
 | Independent release review has no unresolved code P0 or P1 | Sol High review plus real-source semantic canaries | Complete |
-| First real transfer to a second computer passes apply, first-task continuity, doctor, and rollback | Source capture and disposable destination pass; [destination checklist](./FIRST-TRANSFER.md) remains | In progress |
+| First real transfer to any clean test computer passes apply, first-task continuity, doctor, and rollback | Source capture and disposable-machine pass; [transfer checklist](./FIRST-TRANSFER.md) remains | In progress |
 
 ## P1 — required before public GitHub release
 
@@ -34,7 +35,9 @@ This file is the prioritized release ledger for the free self-serve package.
 - Add a binary-safe capability asset contract.
 - Add adapters only when their instruction and lifecycle behavior can be tested without runtime-specific source copies.
 - Add an update preview that compares neutral profile versions.
+- Add credential-free integration declarations after a portable integration contract is specified and tested.
 - Add optional crash-safe cleanup for expired transaction backups.
+- Add a doctor-assisted recovery path for incomplete customization reservations left by process interruption.
 - Add team coordination, shared policy, authentication, billing, and organization controls as a separate paid layer.
 
 ## Required documentation
@@ -43,11 +46,13 @@ The public package must ship with the README, onboarding, universal profile, pri
 
 ## Local release evidence
 
-- `npm test`: 88 passed.
+- `npm test`: 107 passed.
 - Packed consumer: installed with lifecycle scripts disabled, exposed the `saddle` executable, imported the public JavaScript API, and created a valid profile.
 - Pinned Git consumer: installed `github:elou/saddle-portable#71908d7`, exposed the executable and public API, and created a valid profile. Hosted CI repeated the exact-commit check on Node 20 and 26 for macOS and Node 26 for Linux.
 - Real-source browser canary: runtime-only commands, undeclared executable workflows, duplicate capability sources, and provider-specific capability assets stayed out of the universal profile. One neutral `CAPABILITY.md` projected to both runtimes with valid frontmatter.
 - Disposable destination: plan preview, apply, exact doctor for Claude and Codex, provider-asset absence, and rollback passed for transaction `4c1cff72-695b-476d-b1dd-896660630806`.
 - Independent review: fresh capability install, capability update and stale-asset removal, unsafe manifest rejection, applied-but-unverified recovery, and rollback reproductions passed with no unresolved code P0 or P1.
+- Customization browser acceptance: added separate personal and neutral capability entries, reviewed every proposed file and digest, preserved the source profile, created a valid derived profile, and enforced the personal module's consent on export.
+- Customization adversarial review: symlinked output parents, destination races, foreign files, source drift, exact-byte retention, interrupted publication recovery, forged recovery paths, common credentials, runtime wrappers, integration authoring, and expressive personal model references were independently reproduced and gated. No P0 or P1 remains.
 
-The remaining P0 is behavioral evidence on the physical second computer: install, apply, first task, context-reset continuity, doctor, and rollback. Personalization is not included until the user selects specific personal sections and gives explicit consent.
+The remaining P0 is behavioral evidence on a clean physical computer: install, apply, first task, context-reset continuity, doctor, and rollback. Personal context remains optional during onboarding, while ongoing customization supports any number of independently consented personal modules.

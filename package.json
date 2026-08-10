@@ -1,7 +1,7 @@
 {
   "name": "saddle-portable",
   "version": "0.1.0",
-  "description": "Local-first setup and transfer for a runtime-agnostic AI operating profile.",
+  "description": "Local-first setup, customization, and transfer for a runtime-agnostic AI operating profile.",
   "license": "MIT",
   "repository": {
     "type": "git",

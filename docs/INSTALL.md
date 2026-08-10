@@ -2,6 +2,8 @@
 
 Saddle Portable requires Node.js 20 or newer.
 
+Anyone can install the public package. Installation is not bound to a preselected destination, runtime, or account.
+
 ## Install a release tarball
 
 ```sh
@@ -33,6 +35,14 @@ npm run verify:git-install -- "github:elou/saddle-portable#<commit>"
 ## Update
 
 Install the new tag with the same command. An npm package update changes the `saddle` executable. It does not modify a profile or runtime projection until you run setup or import and accept a new plan.
+
+Profile customization is also independent of installation and runtime setup:
+
+```sh
+saddle customize --profile ./my-profile --out ./my-derived-profile
+```
+
+The customizer previews a digest-bound plan and writes a new profile. It never edits the source profile. A manifest is written last as the commit marker; recover an interrupted output with `saddle recover-customization --out ./my-derived-profile`, which preserves unknown or changed files.
 
 ## Uninstall
 

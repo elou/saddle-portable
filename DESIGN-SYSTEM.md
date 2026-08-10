@@ -38,3 +38,15 @@ Every screen or CLI-backed view must define loading, empty, partial, conflict, b
 7. Apply and verify
 8. Finish, first-task check, rollback, and doctor
 
+Onboarding establishes a safe working baseline; it is not the ceiling for personalization.
+
+## Customization sequence
+
+1. Choose an existing neutral profile as the source
+2. Review retained modules and protected lifecycle requirements
+3. Add any number of user-labeled personal-context, operating-policy, project-standard, or capability entries
+4. Preview the exact kept, removed, and added modules
+5. Review each personal or restricted entry's independent consent requirement
+6. Create a new derived profile without changing the source
+
+Customization must not require a target runtime or computer. Privacy controls govern disclosure and consent, not the number or kinds of personal preferences a user may express.

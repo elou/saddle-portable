@@ -1,5 +1,6 @@
 const token = new URLSearchParams(location.search).get('token');
 const state = { step: 1, targetRoot: '', profileRoot: '', runtimes: ['claude', 'codex'], preview: null, result: null };
+const customizeState = { config: null, entries: 0, draft: null, preview: null, result: null };
 
 document.querySelectorAll('[data-next]').forEach((button) => button.addEventListener('click', () => showStep(state.step + 1)));
 document.querySelectorAll('[data-back]').forEach((button) => button.addEventListener('click', () => showStep(state.step - 1)));
@@ -10,6 +11,255 @@ document.querySelector('#doctor-button').addEventListener('click', doctor);
 document.querySelector('#rollback-button').addEventListener('click', rollback);
 document.querySelector('#inventory-button').addEventListener('click', inventory);
 document.querySelectorAll('input[name="profile-mode"]').forEach((input) => input.addEventListener('change', switchProfileMode));
+document.querySelector('#add-custom-entry').addEventListener('click', () => addCustomEntry());
+document.querySelector('#customize-preview-button').addEventListener('click', previewCustomizationDraft);
+document.querySelector('#customize-back-button').addEventListener('click', () => showCustomizeStep(1));
+document.querySelector('#customize-apply-button').addEventListener('click', applyCustomizationDraft);
+
+boot();
+
+async function boot() {
+  try {
+    const config = await api('/api/config', undefined, 'GET');
+    if (config.mode === 'customize') startCustomizer(config);
+  } catch {
+    // Setup remains usable if an older server does not expose mode configuration.
+  }
+}
+
+function startCustomizer(config) {
+  customizeState.config = config;
+  document.querySelector('#setup-progress').hidden = true;
+  document.querySelector('#setup-content').hidden = true;
+  document.querySelector('#customize-progress').hidden = false;
+  document.querySelector('#customize-content').hidden = false;
+
+  const profile = config.profile;
+  document.querySelector('#customize-profile-name').value = `${profile.name} — customized`;
+  document.querySelector('#customize-profile-id').value = `${profile.id}-custom`;
+  document.querySelector('#customize-output').value = config.outRoot;
+  renderDefinitionList(document.querySelector('#customize-source-meta'), [
+    ['Source profile', `${profile.id}@${profile.version}`],
+    ['Source directory', config.profileRoot],
+    ['Safety', 'A new profile will be created; the source stays unchanged'],
+  ]);
+  renderCustomModules(profile.modules);
+  addCustomEntry();
+  showCustomizeStep(1);
+}
+
+function showCustomizeStep(step) {
+  for (const [index, id] of ['customize-compose', 'customize-review', 'customize-finish'].entries()) {
+    document.querySelector(`#${id}`).hidden = index + 1 !== step;
+  }
+  document.querySelectorAll('[data-custom-step]').forEach((item) => {
+    const itemStep = Number(item.dataset.customStep);
+    if (itemStep === step) item.setAttribute('aria-current', 'step');
+    else item.removeAttribute('aria-current');
+    item.classList.toggle('is-complete', itemStep < step);
+  });
+  document.querySelector(`#${['customize-compose', 'customize-review', 'customize-finish'][step - 1]} h1`)?.focus?.();
+}
+
+function renderCustomModules(modules) {
+  const container = document.querySelector('#customize-modules');
+  container.replaceChildren();
+  for (const module of modules) {
+    const label = document.createElement('label'); label.className = 'module-row';
+    const input = document.createElement('input'); input.type = 'checkbox'; input.name = 'retained-module'; input.value = module.id; input.checked = true;
+    input.disabled = module.required === true;
+    const copy = document.createElement('span');
+    const title = document.createElement('strong'); title.textContent = module.id;
+    const detail = document.createElement('small');
+    detail.textContent = `${humanKind(module.kind)} · ${module.sensitivity}${module.required ? ' · required for continuity' : ''}`;
+    copy.append(title, detail); label.append(input, copy); container.append(label);
+  }
+}
+
+function addCustomEntry(seed = {}) {
+  customizeState.entries += 1;
+  const entry = document.createElement('fieldset'); entry.className = 'custom-entry'; entry.dataset.customEntry = String(customizeState.entries);
+  const legend = document.createElement('legend'); legend.textContent = `New entry ${customizeState.entries}`;
+
+  const kindLabel = document.createElement('label');
+  const kindTitle = document.createElement('span'); kindTitle.className = 'field-label'; kindTitle.textContent = 'Type';
+  const kind = document.createElement('select'); kind.className = 'field'; kind.dataset.customField = 'kind';
+  for (const [value, label] of [
+    ['personal-context', 'Personal context'],
+    ['operating-policy', 'Operating rule'],
+    ['project-standard', 'Project standard'],
+    ['capability', 'Universal capability'],
+  ]) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; kind.append(option);
+  }
+  kind.value = seed.kind ?? 'personal-context'; kindLabel.append(kindTitle, kind);
+
+  const labelField = document.createElement('label');
+  const labelTitle = document.createElement('span'); labelTitle.className = 'field-label'; labelTitle.textContent = 'Label';
+  const labelInput = document.createElement('input'); labelInput.className = 'field'; labelInput.dataset.customField = 'label'; labelInput.placeholder = 'How I like feedback'; labelInput.value = seed.label ?? '';
+  labelField.append(labelTitle, labelInput);
+
+  const idField = document.createElement('label');
+  const idTitle = document.createElement('span'); idTitle.className = 'field-label'; idTitle.textContent = 'Entry id';
+  const idInput = document.createElement('input'); idInput.className = 'field'; idInput.dataset.customField = 'id'; idInput.placeholder = 'feedback-preferences'; idInput.value = seed.id ?? '';
+  idField.append(idTitle, idInput);
+  labelInput.addEventListener('input', () => {
+    if (!idInput.dataset.edited) idInput.value = slug(labelInput.value);
+  });
+  idInput.addEventListener('input', () => { idInput.dataset.edited = 'true'; });
+
+  const contentLabel = document.createElement('label'); contentLabel.className = 'custom-entry-content';
+  const contentTitle = document.createElement('span'); contentTitle.className = 'field-label'; contentTitle.textContent = 'What should an agent know or do?';
+  const content = document.createElement('textarea'); content.className = 'field'; content.rows = 6; content.dataset.customField = 'content'; content.value = seed.content ?? '';
+  contentLabel.append(contentTitle, content);
+
+  const privacy = document.createElement('p'); privacy.className = 'candidate-reason';
+  const syncPrivacy = () => {
+    privacy.textContent = kind.value === 'personal-context'
+      ? 'This entry is marked personal and receives its own consent check when the profile is exported or installed.'
+      : kind.value === 'capability'
+        ? 'Saddle creates one neutral CAPABILITY.md and generates runtime projections from it.'
+        : 'This standard entry is included in the derived profile after preview.';
+  };
+  kind.addEventListener('change', syncPrivacy); syncPrivacy();
+
+  const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'button button-ghost danger custom-entry-remove'; remove.textContent = 'Remove entry';
+  remove.addEventListener('click', () => entry.remove());
+  entry.append(legend, kindLabel, labelField, idField, contentLabel, privacy, remove);
+  document.querySelector('#customize-entries').append(entry);
+}
+
+function collectCustomizationDraft() {
+  const retainModuleIds = [...document.querySelectorAll('input[name="retained-module"]')]
+    .filter((input) => input.checked)
+    .map((input) => input.value);
+  const entries = [...document.querySelectorAll('[data-custom-entry]')].map((entry) => ({
+    kind: entry.querySelector('[data-custom-field="kind"]').value,
+    label: entry.querySelector('[data-custom-field="label"]').value.trim(),
+    id: entry.querySelector('[data-custom-field="id"]').value.trim(),
+    content: entry.querySelector('[data-custom-field="content"]').value.trim(),
+  })).filter((entry) => entry.label || entry.id || entry.content);
+  return {
+    profile: {
+      name: document.querySelector('#customize-profile-name').value.trim(),
+      id: document.querySelector('#customize-profile-id').value.trim(),
+    },
+    retainModuleIds,
+    entries,
+  };
+}
+
+async function previewCustomizationDraft() {
+  const error = document.querySelector('#customize-compose-error'); error.replaceChildren();
+  const button = document.querySelector('#customize-preview-button'); button.disabled = true; button.textContent = 'Building preview…';
+  try {
+    customizeState.draft = collectCustomizationDraft();
+    customizeState.preview = await api('/api/customize/preview', {
+      profileRoot: customizeState.config.profileRoot,
+      outRoot: document.querySelector('#customize-output').value.trim(),
+      draft: customizeState.draft,
+    });
+    document.querySelector('#customize-preview-state').replaceChildren(renderCustomizationPreview(customizeState.preview));
+    showCustomizeStep(2);
+  } catch (failure) {
+    renderError(error, failure.message);
+  } finally {
+    button.disabled = false; button.textContent = 'Review new profile';
+  }
+}
+
+async function applyCustomizationDraft() {
+  const button = document.querySelector('#customize-apply-button'); button.disabled = true; button.textContent = 'Creating…';
+  try {
+    customizeState.result = await api('/api/customize/apply', {
+      profileRoot: customizeState.config.profileRoot,
+      outRoot: document.querySelector('#customize-output').value.trim(),
+      draft: customizeState.draft,
+      previewDigest: customizeState.preview.digest,
+    });
+    renderDefinitionList(document.querySelector('#customize-finish-details'), [
+      ['New profile', `${customizeState.result.profile.id}@${customizeState.result.profile.version}`],
+      ['Saved to', customizeState.result.outputRoot],
+      ['Source profile', customizeState.config.profileRoot],
+    ]);
+    showCustomizeStep(3);
+  } catch (failure) {
+    renderError(document.querySelector('#customize-preview-state'), failure.message);
+  } finally {
+    button.disabled = false; button.textContent = 'Create this profile';
+  }
+}
+
+function renderCustomizationPreview(preview) {
+  const wrapper = document.createElement('div');
+  const plan = preview.plan;
+  const metadata = document.createElement('dl'); metadata.className = 'preview-meta';
+  renderDefinitionList(metadata, [
+    ['Source', `${plan.sourceProfile.id}@${plan.sourceProfile.version}`],
+    ['New profile', `${plan.derivedProfile.id}@${plan.derivedProfile.version}`],
+    ['Save to', plan.outputRoot],
+    ['Preview digest', preview.digest],
+  ]);
+  wrapper.append(metadata);
+  for (const [title, modules, empty] of [
+    ['Kept', plan.retainedModules, 'No existing modules kept.'],
+    ['Removed', plan.removedModules, 'No modules removed.'],
+    ['Added', plan.addedModules, 'No new entries added.'],
+  ]) {
+    const section = document.createElement('section'); section.className = 'customize-review-group';
+    const heading = document.createElement('h2'); heading.textContent = title; section.append(heading);
+    if (!modules.length) { const note = document.createElement('p'); note.textContent = empty; section.append(note); }
+    for (const module of modules) section.append(row('•', module.label ?? module.id, `${humanKind(module.kind)} · ${module.sensitivity}`));
+    wrapper.append(section);
+  }
+  if (plan.requiredConsents?.length) {
+    const note = document.createElement('aside'); note.className = 'notice';
+    const lead = document.createElement('strong'); lead.textContent = 'Personal consent remains granular.';
+    note.append(lead, document.createTextNode(` ${plan.requiredConsents.length} personal ${plan.requiredConsents.length === 1 ? 'entry requires' : 'entries require'} separate confirmation when this profile is exported or installed.`));
+    wrapper.append(note);
+  }
+  const operations = document.createElement('section'); operations.className = 'customize-review-group';
+  const heading = document.createElement('h2'); heading.textContent = 'Files to create'; operations.append(heading);
+  for (const operation of plan.operations ?? []) operations.append(renderCustomizationOperation(operation));
+  wrapper.append(operations);
+  return wrapper;
+}
+
+function renderCustomizationOperation(item) {
+  const operation = document.createElement('div'); operation.className = 'operation';
+  const action = document.createElement('strong'); action.textContent = `${item.action.replaceAll('-', ' ')} · ${item.risk ?? 'low'}`;
+  if (item.risk === 'personal' || item.risk === 'restricted' || item.risk === 'high') action.className = 'risk-high';
+  const copy = document.createElement('div');
+  const target = document.createElement('code'); target.textContent = item.target;
+  const reason = document.createElement('small'); reason.textContent = item.reason;
+  const digest = document.createElement('small'); digest.className = 'operation-modules'; digest.textContent = `Digest: ${item.digest} · Risk: ${item.risk ?? 'low'}`;
+  const details = document.createElement('details'); details.className = 'content-preview';
+  const summary = document.createElement('summary'); summary.textContent = item.contentEncoding === 'base64' ? 'Review exact proposed bytes (base64)' : 'Review proposed content';
+  const pre = document.createElement('pre'); pre.textContent = item.content;
+  details.append(summary, pre);
+  copy.append(target, document.createElement('br'), reason, document.createElement('br'), digest, details);
+  operation.append(action, copy);
+  return operation;
+}
+
+function renderDefinitionList(container, pairs) {
+  container.replaceChildren();
+  for (const [label, value] of pairs) {
+    const term = document.createElement('dt'); term.textContent = label;
+    const detail = document.createElement('dd'); detail.textContent = value;
+    container.append(term, detail);
+  }
+}
+
+function humanKind(kind) {
+  return ({
+    'personal-context': 'personal context',
+    'operating-policy': 'operating rule',
+    'project-standard': 'project standard',
+    capability: 'universal capability',
+    'session-continuity': 'session continuity',
+  })[kind] ?? kind;
+}
 
 function showStep(step) {
   state.step = Math.max(1, Math.min(5, step));
@@ -298,11 +548,11 @@ function syncApplyEnabled() {
   document.querySelector('#apply-button').disabled = selectedImportConsents().length !== required;
 }
 
-async function api(endpoint, body) {
+async function api(endpoint, body, method = 'POST') {
   const response = await fetch(endpoint, {
-    method: 'POST',
+    method,
     headers: { 'content-type': 'application/json', 'x-saddle-token': token },
-    body: JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error ?? 'Saddle could not complete the request.');

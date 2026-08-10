@@ -102,4 +102,20 @@ At `71908d7`, the final nonpersonal canary selected the foundation plus `model-f
 
 Final local verification: 88 tests passed; the 29-file package dry-run was 53.5 kB packed and 209.9 kB unpacked with SHA-1 `83cda56c2a39d1295521da1c4fcc351164c8396a`; exact GitHub install from `71908d7` exposed the executable and public API and created a profile. Hosted run `31348641637` passed.
 
-Remaining gate: identify whether `toobie` or `toobie-1` is the destination, obtain explicit consent for any personal sections, transfer the approved bundle, and record install, apply, first-task continuity, context-reset continuity, doctor, and rollback evidence before tagging or merging `v0.1.0`. The prepared nonpersonal archive is `.tmp/saddle-transfer-610a434-nonpersonal.tgz` with SHA-256 `25df2579ff897558573a159aa1ffaa1c74173d969e65af756ebb601b52bd932a`; recreate it if personal sections are approved.
+At that checkpoint, the remaining gate was framed as a transfer to a named computer with a nonpersonal archive prepared in advance. That framing is superseded below; the archive is test evidence, not a product or onboarding constraint.
+
+## Product correction — distribution and customization
+
+The preceding machine-specific gate is superseded. Saddle is a public GitHub/npm package that anyone may install; no named computer is part of the product contract. The first-transfer gate may run on any clean physical test computer.
+
+Onboarding remains deliberately short and privacy-safe, with personal context off by default. Ongoing customization is not limited to a starter preference set: the new customizer derives an immutable profile from an existing profile, retains or removes eligible modules, and accepts any number of user-labeled personal-context, operating-policy, project-standard, and prose capability entries. Personal and restricted modules retain individual consent. Privacy controls disclosure; it does not limit expressiveness.
+
+## Broad customization implementation and release gate
+
+The public UI and CLI now provide `saddle customize --profile <source> --out <derived>` without a runtime or machine target. The source remains unchanged. Users can retain eligible modules and add any number of user-labeled personal context, operating rules, project standards, and prose `CAPABILITY.md` entries. Every proposed file, risk, digest, and exact content body appears in the digest-bound review. Personal entries remain separate explicit-consent modules on export and install.
+
+Publication validates private staging, exclusively reserves an absent output, never overwrites a destination entry, and writes the manifest last. `saddle recover-customization --out <directory>` uses the durable reservation journal to remove only planned, digest-matching, contained, nonsymlink files and empty directories; foreign, changed, corrupt, or unrecognized content is preserved. The protocol is manifest-committed and recoverable, not described as whole-directory crash atomicity.
+
+The shared content policy rejects high-signal credentials, machine-specific paths, runtime command wrappers, and integration setup. Policy is tier-aware: universal operating/project/capability authoring remains strict and provider-neutral, while descriptive personal context may mention providers or models and keeps its explicit-consent boundary.
+
+Final local evidence before commit: `npm test` passed 107 tests; the npm dry run contained 32 files; `git diff --check` passed. Capped desktop browser acceptance created `final-browser-custom@1.0.1` from an unchanged `final-browser@1.0.0`, displayed exact `CAPABILITY.md` and personal content, rejected export without `feedback-preferences` consent, and passed export with that consent. Two independent Sol High review passes ended with no unresolved P0 or P1. Remaining release gate: push the reviewed commit, rerun exact GitHub install and hosted CI, then perform the documented first-transfer checklist on any clean physical computer. Do not merge, tag, or publish npm before that gate.

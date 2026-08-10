@@ -1,8 +1,8 @@
 # Saddle Portable
 
-Saddle Portable moves one operating profile across AI runtimes and computers. It stores authored rules, session-continuity procedures, capabilities, routing preferences, and selected context in a human-readable neutral bundle. Claude and Codex receive generated projections of that bundle.
+Saddle Portable gives anyone a local setup and customization layer for one operating profile across AI runtimes and computers. It stores authored rules, session-continuity procedures, capabilities, routing preferences, and selected context in a human-readable neutral bundle. Claude and Codex receive generated projections of that bundle.
 
-Version `0.1.0` is a local, single-user release candidate. Do not run it against your real home directory until the first-transfer checklist passes on the destination computer.
+Version `0.1.0` is a local, single-user release candidate. Do not run it against your real home directory until the first-transfer checklist passes on a clean test computer.
 
 ## Install
 
@@ -41,9 +41,19 @@ saddle doctor --profile ./my-profile --target /absolute/test-home
 
 `saddle import` is a dry run unless you pass both `--apply` and the current plan digest.
 
+## Customize a profile
+
+Onboarding is deliberately short. Customization is not limited to its starter questions.
+
+```sh
+saddle customize --profile /path/to/current-profile --out /path/to/new-profile
+```
+
+The local customizer creates a new derived profile and never edits the source in place. Keep or remove existing modules, then add any number of user-labeled personal context entries, operating rules, project standards, or prose-based universal capabilities. Each personal entry keeps its own consent boundary. Preview must pass before Saddle creates the new profile. A derived profile is committed only when its manifest is written last; after an interrupted customization, run `saddle recover-customization --out /path/to/new-profile` to safely remove only journal-matched incomplete files.
+
 ## What transfers
 
-Saddle can transfer authored operating policies, session-start and context-reset procedures, project standards, model-neutral capabilities, cost-routing preferences, and selected personal context. Personal context and script-bearing capabilities require item-level consent during export and again on the destination computer.
+Saddle can transfer authored operating policies, session-start and context-reset procedures, project standards, model-neutral capabilities, cost-routing preferences, and user-defined personal context. Personalization is not limited to preset categories. Personal context and script-bearing capabilities require item-level consent during export and again wherever the profile is installed.
 
 Saddle excludes transcripts, prompt and tool history, credentials, secret-bearing URLs, runtime settings, permission allowlists, trust grants, MCP connection details, plugin state, notifications, cron entries, and generated projections.
 

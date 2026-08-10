@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, realpath, rename, rm, writeFile } from 'node:
 import path from 'node:path';
 
 import { readCandidate } from '../capture/index.js';
-import { sha256, validateManifest } from '../profile/index.js';
+import { loadProfile, sha256, validateManifest } from '../profile/index.js';
 
 const DEFAULT_CONTINUITY = `# Session continuity
 
@@ -184,6 +184,7 @@ export async function createProfileFromCandidates({
       flag: 'wx',
       mode: 0o600,
     });
+    await loadProfile(staging);
     await rename(staging, outputRoot);
     return {
       outputRoot,

@@ -23,7 +23,7 @@ If any private or machine-specific value appears, stop and keep the bundle on th
 3. If the first task must resume an existing project, copy or reconnect that project's durable dashboard and session notes separately. Saddle does not include session history in the operating profile.
 4. Run `saddle setup` and select **Use an existing profile**.
 5. Preview every target, action, reason, risk, module list, and proposed content block. Confirm that only selected runtime roots and namespaced capability paths appear.
-6. Confirm each personal or restricted module on the destination computer.
+6. Confirm each personal or restricted module on the clean test computer.
 7. Apply the accepted plan.
 8. Run doctor and require `exact` for each selected runtime.
 9. Start a disposable first task in each runtime.

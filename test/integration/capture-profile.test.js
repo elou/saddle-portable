@@ -25,10 +25,10 @@ test('selected runtime sections and skills become one valid neutral profile', as
       candidate,
     })),
     outputRoot,
-    profile: { id: 'my-terra', name: 'My Terra' },
+    profile: { id: 'my-profile', name: 'My profile' },
   });
 
-  assert.equal(result.profile.id, 'my-terra');
+  assert.equal(result.profile.id, 'my-profile');
   const loaded = await loadProfile(outputRoot);
   assert.ok(loaded.modules.some((module) => module.kind === 'operating-policy'));
   assert.ok(loaded.modules.some((module) => module.kind === 'session-continuity'));
@@ -68,6 +68,23 @@ test('capture rereads candidates, rejects drift, and leaves no partial output', 
     outputRoot,
     profile: { id: 'drift-test', name: 'Drift test' },
   }), /changed/);
+  await assert.rejects(stat(outputRoot), { code: 'ENOENT' });
+});
+
+test('bare credentials are not capturable and cannot be published through a forged selection', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'saddle-capture-credential-'));
+  const runtimeRoot = path.join(root, '.codex');
+  await mkdir(runtimeRoot);
+  await writeFile(path.join(runtimeRoot, 'AGENTS.md'), `## Credential\n${['gh', 'p_', 'abcdefghijklmnopqrstuvwx'].join('')}\n`);
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'codex', runtimeRoot });
+  const candidate = candidates[0];
+  assert.equal(candidate.selectable, false);
+  const outputRoot = path.join(root, 'portable');
+  await assert.rejects(createProfileFromCandidates({
+    sources: [{ runtimeRoot, candidate: { ...candidate, selectable: true } }],
+    outputRoot,
+    profile: { id: 'credential-test', name: 'Credential test' },
+  }), /candidate is no longer safe to read/);
   await assert.rejects(stat(outputRoot), { code: 'ENOENT' });
 });
 

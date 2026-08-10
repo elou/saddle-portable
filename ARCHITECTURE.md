@@ -221,6 +221,12 @@ Before the first target mutation, Saddle writes a transaction journal and backup
 
 Saddle only removes a file when its current digest matches a prior Saddle-managed record. It never deletes an unrecognized file.
 
+### Customization publication
+
+Customization validates a complete private staging profile before it reserves the absent output directory. Publication uses exclusive, no-overwrite file creation and writes `saddle.profile.json` last as the validity marker. A failed publish removes only Saddle-created files whose digests are unchanged and only empty directories; foreign or modified content is preserved with the reservation marker for diagnosis.
+
+This is a manifest-committed protocol, not a claim that an entire directory tree appears in one filesystem operation. A process interruption during publication can leave an incomplete reserved directory without a manifest. The directory is not a loadable profile and blocks retry at the same path until it is inspected and removed.
+
 ## 8. CLI contract
 
 Version 1 commands:
@@ -232,6 +238,7 @@ saddle export --profile <directory> --out <directory>
 saddle import <bundle> --target <root> [--runtime claude,codex] [--apply] [--json]
 saddle doctor --profile <directory> --target <root> [--json]
 saddle rollback <transaction-id> --state <directory>
+saddle customize --profile <directory> --out <new-directory>
 ```
 
 `import` is dry-run by default. `--apply` must display or accept the exact plan digest. Non-interactive JSON mode must never infer consent for personal, restricted, conflicting, or executable content.
@@ -254,6 +261,6 @@ The interface binds only to loopback, never opens a remote listener, stores no a
 - Node.js 20+ ESM package with a `saddle` executable.
 - Installable from a local tarball, a GitHub package reference, and eventually the npm registry.
 - No install or postinstall scripts.
-- No dependency on the user's existing Terra, Harness, Saddle, Claude, or Codex installation.
+- No dependency on the user's existing private harness, Saddle, Claude, or Codex installation.
 - Package contents are restricted by the `files` allowlist and inspected in tests.
 - The repository remains unmerged until clean-profile, privacy, rollback, and packed-install gates pass.

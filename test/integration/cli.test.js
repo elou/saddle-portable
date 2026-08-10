@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
 import { runCli } from '../../src/cli.js';
+import { createReservationJournal, reserveOutput, stagingPath } from '../../src/onboarding/customizer-publish.js';
 
 async function workspace() {
   return mkdtemp(path.join(os.tmpdir(), 'saddle-cli-'));
@@ -31,6 +32,28 @@ test('init creates a loadable neutral profile with continuity procedures', async
     'session.end',
   ]);
   assert.match(await readFile(path.join(profile, 'instructions/session-continuity.md'), 'utf8'), /Before context reset/);
+});
+
+test('customize requires explicit profile and output paths without a runtime target', async () => {
+  const missingProfile = capture();
+  assert.equal(await runCli(['customize', '--out', '/tmp/customized'], missingProfile.io), 1);
+  assert.match(missingProfile.errors[0], /--profile is required/);
+
+  const missingOutput = capture();
+  assert.equal(await runCli(['customize', '--profile', '/tmp/profile'], missingOutput.io), 1);
+  assert.match(missingOutput.errors[0], /--out is required/);
+});
+
+test('recover-customization validates output and reports recovered reservations', async () => {
+  const missing = capture();
+  assert.equal(await runCli(['recover-customization'], missing.io), 1);
+  assert.match(missing.errors[0], /--out is required/);
+  const root = await workspace(); const outRoot = path.join(root, 'derived'); const staging = stagingPath(root, outRoot);
+  await mkdir(staging); await writeFile(path.join(staging, 'note.md'), 'planned');
+  await reserveOutput(outRoot, await createReservationJournal(staging, outRoot)); await writeFile(path.join(outRoot, 'note.md'), 'planned');
+  const result = capture();
+  assert.equal(await runCli(['recover-customization', '--out', outRoot], result.io), 0);
+  assert.match(result.output[0], /Removed the incomplete customization reservation/);
 });
 
 test('import defaults to dry-run, applies only an accepted digest, verifies, and rolls back', async () => {
@@ -85,4 +108,3 @@ test('doctor reports lifecycle support and detects managed drift', async () => {
   assert.equal(await runCli(['doctor', '--profile', profile, '--target', target], drifted.io), 1);
   assert.match(drifted.output[0], /codex: drifted/);
 });
-

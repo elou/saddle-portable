@@ -11,6 +11,7 @@ import {
   rollbackTransaction,
 } from './transaction/index.js';
 import { createSetupServer } from './ui/server.js';
+import { recoverCustomization } from './onboarding/customizer.js';
 
 export async function runCli(argv, io = defaultIo()) {
   const [command, ...args] = argv;
@@ -35,6 +36,10 @@ export async function runCli(argv, io = defaultIo()) {
         return await rollbackCommand(parsed, io);
       case 'setup':
         return await setupCommand(parsed, io);
+      case 'customize':
+        return await customizeCommand(parsed, io);
+      case 'recover-customization':
+        return await recoverCustomizationCommand(parsed, io);
       default:
         throw new CliError(`Unknown command: ${command}`);
     }
@@ -200,6 +205,27 @@ async function setupCommand(parsed, io) {
   return 0;
 }
 
+async function customizeCommand(parsed, io) {
+  const profileRoot = requiredPath(parsed, 'profile');
+  const outRoot = requiredPath(parsed, 'out');
+  const rawPort = stringOption(parsed, 'port');
+  const port = rawPort === undefined ? 0 : Number(rawPort);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new CliError('--port must be a valid port number.');
+  }
+  const setup = createSetupServer({ config: { mode: 'customize', profileRoot, outRoot } });
+  const listener = await setup.listen({ port });
+  io.out(`Saddle customization is available only on this computer:\n${listener.url}\nPress Ctrl+C to stop.`);
+  if (!booleanOption(parsed, 'no-open')) openLocalUrl(listener.url);
+  return 0;
+}
+
+async function recoverCustomizationCommand(parsed, io) {
+  const result = await recoverCustomization({ outRoot: requiredPath(parsed, 'out') });
+  output(io, parsed, result, result.message);
+  return result.status === 'incomplete' ? 3 : 0;
+}
+
 function openLocalUrl(url) {
   const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
   const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
@@ -270,7 +296,7 @@ function formatPlan(plan, digest) {
 }
 
 function helpText() {
-  return `Saddle Portable\n\nCommands:\n  saddle setup [--port <number>] [--no-open]\n  saddle init [directory]\n  saddle scan [--target <home>] [--runtime claude,codex]\n  saddle export --profile <directory> --out <directory> [--consent id,id]\n  saddle import <bundle> --target <home> [--runtime claude,codex] [--apply --accept-plan <digest>] [--consent id,id]\n  saddle doctor --profile <directory> --target <home> [--runtime claude,codex]\n  saddle rollback <transaction-id> --target <home> --state <directory>\n\nAdd --json for machine-readable output.`;
+  return `Saddle Portable\n\nCommands:\n  saddle setup [--port <number>] [--no-open]\n  saddle customize --profile <directory> --out <directory> [--port <number>] [--no-open]\n  saddle recover-customization --out <directory>\n  saddle init [directory]\n  saddle scan [--target <home>] [--runtime claude,codex]\n  saddle export --profile <directory> --out <directory> [--consent id,id]\n  saddle import <bundle> --target <home> [--runtime claude,codex] [--apply --accept-plan <digest>] [--consent id,id]\n  saddle doctor --profile <directory> --target <home> [--runtime claude,codex]\n  saddle rollback <transaction-id> --target <home> --state <directory>\n\nAdd --json for machine-readable output.`;
 }
 
 function defaultIo() {

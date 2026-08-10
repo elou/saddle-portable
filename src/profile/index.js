@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { cp, lstat, mkdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { ABSOLUTE_HOME_PATH, hasSecretBearingContent } from '../security/content-policy.js';
 
 const KINDS = new Set(['operating-policy', 'session-continuity', 'project-standard', 'capability', 'personal-context', 'integration-declaration']);
 const SENSITIVITIES = new Set(['standard', 'personal', 'restricted']);
@@ -14,8 +15,6 @@ const ROUTE_CAPABILITIES = new Set(['low', 'medium', 'high', 'frontier']);
 const ROUTE_REASONING = new Set(['low', 'medium', 'high']);
 const ANCHOR = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FORBIDDEN_NAME = /(?:^|[-_.])(transcript|conversation|prompt(?:-history)?|tool[-_.]?(?:input|output|payload|error)|telemetry|env(?:ironment)?|credential|credentials|token|secret|private[-_.]?key|cookie|runtime[-_.]?settings?|settings|permission|allowlist|trust[-_.]?grant|mcp|plugin[-_.]?state|notification|cron)(?:$|[-_.])/i;
-const SECRET_CONTENT = /(?:\b(?:api[_-]?key|access[_-]?token|auth(?:orization)?|password|secret|private[_-]?key|cookie)\b\s*[:=]|https?:\/\/[^\s/]+[^\s]*[?&](?:token|api[_-]?key|key|secret|signature|sig|password|credential)=)/i;
-const ABSOLUTE_HOME_CONTENT = /(?:^|[\s"'`(])(?:\/Users\/[^/\s]+|\/home\/[^/\s]+|[A-Za-z]:\\Users\\[^\\\s]+)/;
 
 export class ProfileError extends Error {
   constructor(message, code = 'PROFILE_INVALID') {
@@ -163,14 +162,14 @@ export async function loadProfile(profileRoot) {
     const source = await safeFile(root, descriptor.source);
     const content = await readFile(source.absolute);
     const text = content.toString('utf8');
-    if (SECRET_CONTENT.test(text) || ABSOLUTE_HOME_CONTENT.test(text)) throw new ProfileError(`module contains secret-bearing content or machine-specific path: ${descriptor.source}`, 'CONTENT_DENIED');
+    if (hasSecretBearingContent(text) || ABSOLUTE_HOME_PATH.test(text)) throw new ProfileError(`module contains secret-bearing content or machine-specific path: ${descriptor.source}`, 'CONTENT_DENIED');
     if (sha256(content) !== descriptor.digest) throw new ProfileError(`module digest mismatch: ${descriptor.id}`, 'DIGEST_MISMATCH');
     const assets = [];
     for (const declaredAsset of descriptor.assets ?? []) {
       const asset = await safeFile(root, declaredAsset.path);
       const assetContent = await readFile(asset.absolute);
       const assetText = assetContent.toString('utf8');
-      if (SECRET_CONTENT.test(assetText) || ABSOLUTE_HOME_CONTENT.test(assetText)) throw new ProfileError(`asset contains secret-bearing content or machine-specific path: ${declaredAsset.path}`, 'CONTENT_DENIED');
+      if (hasSecretBearingContent(assetText) || ABSOLUTE_HOME_PATH.test(assetText)) throw new ProfileError(`asset contains secret-bearing content or machine-specific path: ${declaredAsset.path}`, 'CONTENT_DENIED');
       if (sha256(assetContent) !== declaredAsset.digest) throw new ProfileError(`asset digest mismatch: ${descriptor.id}/${declaredAsset.path}`, 'DIGEST_MISMATCH');
       assets.push({ path: asset.relative, digest: declaredAsset.digest, kind: declaredAsset.kind, absolutePath: asset.absolute });
     }

@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { createSetupServer } from '../../src/ui/server.js';
+import { runCli } from '../../src/cli.js';
 
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 
@@ -16,7 +17,9 @@ test('setup server is loopback-only, token protected, and serves the onboarding 
 
   const page = await fetch(listener.url);
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /Bring your working methods with you/);
+  const pageSource = await page.text();
+  assert.match(pageSource, /Bring your working methods with you/);
+  assert.doesNotMatch(pageSource, /\bTerra\b/);
   assert.match(page.headers.get('content-security-policy'), /default-src 'self'/);
 
   const denied = await fetch(`http://127.0.0.1:${listener.port}/api/status`);
@@ -26,6 +29,12 @@ test('setup server is loopback-only, token protected, and serves the onboarding 
   });
   assert.equal(status.status, 200);
   assert.equal((await status.json()).localOnly, true);
+
+  const app = await fetch(`http://127.0.0.1:${listener.port}/app.js`);
+  const appSource = await app.text();
+  assert.match(appSource, /What should an agent know or do\?/);
+  assert.match(appSource, /exported or installed/);
+  assert.doesNotMatch(appSource, /What should Terra know or do\?/);
 
   const root = await mkdtemp(path.join(os.tmpdir(), 'saddle-ui-target-'));
   const scan = await fetch(`http://127.0.0.1:${listener.port}/api/scan`, {
@@ -42,7 +51,88 @@ test('setup server rejects non-loopback bind requests', async () => {
   await assert.rejects(setup.listen({ host: '0.0.0.0' }), /only binds to loopback/);
 });
 
-test('setup server inventories trusted candidates and creates a neutral profile from selected ids', async (t) => {
+test('customization server exposes only token-protected profile metadata and requires no target', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'saddle-ui-customize-config-'));
+  const profileRoot = path.join(root, 'profile');
+  const outRoot = path.join(root, 'customized-profile');
+  await runCli(['init', profileRoot], { out() {}, err() {} });
+  const setup = createSetupServer({
+    token: 'customize-config-token',
+    config: { mode: 'customize', profileRoot, outRoot },
+  });
+  const listener = await setup.listen();
+  t.after(() => setup.close());
+
+  const denied = await fetch(`http://127.0.0.1:${listener.port}/api/config`);
+  assert.equal(denied.status, 403);
+  const response = await fetch(`http://127.0.0.1:${listener.port}/api/config`, {
+    headers: { 'x-saddle-token': listener.token },
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    mode: 'customize',
+    profileRoot,
+    outRoot,
+    profile: {
+      id: 'profile',
+      name: 'profile',
+      version: '1.0.0',
+      modules: [
+        { id: 'operating-policy', kind: 'operating-policy', sensitivity: 'standard', enabled: true, required: false },
+        { id: 'session-continuity', kind: 'session-continuity', sensitivity: 'standard', enabled: true, required: true },
+        { id: 'project-standards', kind: 'project-standard', sensitivity: 'standard', enabled: true, required: false },
+      ],
+    },
+  });
+});
+
+test('customization preview is deterministic, non-writing, and apply enforces its digest', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'saddle-ui-customize-'));
+  const profileRoot = path.join(root, 'profile');
+  const outRoot = path.join(root, 'customized-profile');
+  await runCli(['init', profileRoot], { out() {}, err() {} });
+  const setup = createSetupServer({ token: 'customize-token' });
+  const listener = await setup.listen();
+  t.after(() => setup.close());
+  const request = (endpoint, body, token = listener.token) => fetch(`http://127.0.0.1:${listener.port}${endpoint}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-saddle-token': token },
+    body: JSON.stringify(body),
+  });
+  const body = {
+    profileRoot,
+    outRoot,
+    draft: {
+      retainModuleIds: ['session-continuity'],
+      entries: [],
+      updatedAt: '2026-08-09T00:00:01.000Z',
+    },
+  };
+
+  assert.equal((await request('/api/customize/preview', body, 'wrong')).status, 403);
+  const first = await request('/api/customize/preview', body);
+  assert.equal(first.status, 200);
+  const preview = await first.json();
+  assert.deepEqual(Object.keys(preview).sort(), ['digest', 'plan']);
+  assert.equal(Object.hasOwn(preview, 'manifest'), false);
+  assert.equal(Object.hasOwn(preview, 'files'), false);
+  assert.equal(preview.plan.operations.every((operation) => typeof operation.content === 'string'), true);
+  assert.match(preview.plan.operations.find((operation) => operation.target === 'saddle.profile.json').content, /"schemaVersion": "1\.0"/);
+  const second = await request('/api/customize/preview', body);
+  assert.deepEqual(await second.json(), preview);
+  await assert.rejects(readFile(path.join(outRoot, 'saddle.profile.json')), { code: 'ENOENT' });
+
+  const rejected = await request('/api/customize/apply', { ...body, previewDigest: 'wrong' });
+  assert.equal(rejected.status, 409);
+  await assert.rejects(readFile(path.join(outRoot, 'saddle.profile.json')), { code: 'ENOENT' });
+
+  const applied = await request('/api/customize/apply', { ...body, previewDigest: preview.digest });
+  assert.equal(applied.status, 200);
+  assert.equal((await applied.json()).previewDigest, preview.digest);
+  assert.equal(JSON.parse(await readFile(path.join(outRoot, 'saddle.profile.json'), 'utf8')).modules.length, 1);
+});
+
+test('setup server accepts sourceRoot for inventory and capture while retaining targetRoot compatibility', async (t) => {
   const setup = createSetupServer({ token: 'capture-token' });
   const listener = await setup.listen();
   t.after(() => setup.close());
@@ -55,19 +145,20 @@ test('setup server inventories trusted candidates and creates a neutral profile 
     headers: { 'content-type': 'application/json', 'x-saddle-token': listener.token },
     body: JSON.stringify(body),
   });
-  const inventoryResponse = await request('/api/inventory', { targetRoot: root, runtimes: ['claude'] });
+  const inventoryResponse = await request('/api/inventory', { sourceRoot: root, runtimes: ['claude'] });
   assert.equal(inventoryResponse.status, 200);
   const inventory = await inventoryResponse.json();
+  assert.equal(inventory.sourceRoot, root);
   assert.deepEqual(inventory.inventories[0].candidates.map((item) => item.suggestedKind), [
     'operating-policy',
     'session-continuity',
   ]);
 
-  const outputRoot = path.join(root, 'profiles', 'my-terra');
+  const outputRoot = path.join(root, 'profiles', 'my-profile');
   const captureResponse = await request('/api/capture', {
-    targetRoot: root,
+    sourceRoot: root,
     outputRoot,
-    profile: { id: 'my-terra', name: 'My Terra' },
+    profile: { id: 'my-profile', name: 'My profile' },
     selections: inventory.inventories[0].candidates.map((candidate) => ({
       runtime: 'claude',
       id: candidate.id,
@@ -75,7 +166,7 @@ test('setup server inventories trusted candidates and creates a neutral profile 
   });
   assert.equal(captureResponse.status, 200);
   const manifest = JSON.parse(await readFile(path.join(outputRoot, 'saddle.profile.json'), 'utf8'));
-  assert.equal(manifest.profile.id, 'my-terra');
+  assert.equal(manifest.profile.id, 'my-profile');
   assert.ok(manifest.modules.some((module) => module.kind === 'operating-policy'));
   assert.ok(manifest.modules.some((module) => module.kind === 'session-continuity'));
 });

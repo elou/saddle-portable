@@ -17,7 +17,7 @@ File-name and content checks are a safety boundary, not a complete secret scanne
 
 ## Personal context
 
-Personal candidates remain off by default. A personal module records explicit consent in the profile, but destination runtime permissions remain unchanged. Export and destination apply each require item-level consent.
+Personal candidates remain off by default during onboarding. Customization may add any number of user-labeled personal entries; each becomes a separate module with explicit consent. Export and installation each require item-level consent, while runtime permissions remain unchanged. Consent controls where an entry is used—it does not restrict what the user may choose to personalize.
 
 ## Scripts
 

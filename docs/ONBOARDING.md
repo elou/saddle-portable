@@ -1,6 +1,6 @@
 # Onboarding
 
-Saddle setup turns authored material from supported runtimes into one neutral profile. It does not copy a runtime directory.
+Saddle setup turns authored material from supported runtimes into one neutral profile. It does not copy a runtime directory. The package and setup flow are public and destination-agnostic; each user chooses their own source profile and local installation target.
 
 ## Setup flow
 
@@ -11,7 +11,7 @@ Saddle setup turns authored material from supported runtimes into one neutral pr
 5. Review the suggested type and sensitivity for each item.
 6. Select the items to include and choose a new profile directory.
 7. Review each target, module, risk label, and proposed content block.
-8. Confirm each personal or restricted module on the destination computer.
+8. Confirm each personal or restricted module on the computer where the profile will be applied.
 9. Apply the accepted plan, then run doctor or rollback from the finish screen.
 
 Inventory is read-only. Creating a profile writes a new neutral bundle to the directory you choose. Apply writes runtime projections and creates a transaction journal beneath the selected home directory at `.saddle/`.
@@ -28,12 +28,12 @@ Offer these items in this order:
 4. Model-neutral routing preferences, including minimum-cost routing and escalation conditions.
 5. Reusable capabilities with their references and inert scripts.
 6. Design and writing standards that should follow the user across projects.
-7. Canonical `human.md` personal context only when the user selects each offered section.
+7. Canonical `human.md` personal context as an optional starting point, only when the user selects each offered section.
 8. Integration declarations without credentials or trust state.
 
-The first six categories can improve the first task on the destination computer. Personal context and integrations do not belong in the default selection. No capability is required for setup, and capabilities remain unchecked until the user chooses a workflow they use.
+The first six categories can improve the first task after installation. Personal context and integrations do not belong in the default selection. No capability is required for setup, and capabilities remain unchecked until the user chooses a workflow they use. These onboarding defaults do not limit later customization.
 
-Saddle transfers continuity procedures, not session history. It does not inventory project session notes automatically. Copy or reconnect a project's durable dashboard and notes separately when that project must resume on the destination computer.
+Saddle transfers continuity procedures, not session history. It does not inventory project session notes automatically. Copy or reconnect a project's durable dashboard and notes separately when that project must resume on another computer.
 
 Saddle applies narrowly defined portable replacements when the intent is clear:
 
@@ -54,7 +54,26 @@ Personal and restricted modules require a second item-level confirmation before 
 
 ## Existing profiles
 
-Select **Use an existing profile** when a portable bundle already exists on the destination computer. Saddle validates the manifest, content digests, paths, lifecycle references, routing preferences, and portability policy before it creates a plan.
+Select **Use an existing profile** when a portable bundle already exists on the computer where it will be applied. Saddle validates the manifest, content digests, paths, lifecycle references, routing preferences, and portability policy before it creates a plan.
+
+## Ongoing customization
+
+Run the customizer when the starter profile no longer expresses enough of the person or their working method:
+
+```sh
+saddle customize --profile /path/to/current-profile --out /path/to/new-profile
+```
+
+Customization is separate from installation and does not require a runtime or target computer. Saddle reads the existing profile, then creates a new derived profile at an absent output path after a digest-bound preview. The source profile remains unchanged. Its manifest is the commit marker; if the process stops before that marker, run `saddle recover-customization --out /path/to/new-profile`. Recovery preserves unknown or changed files for manual review.
+
+The v0.1 customizer supports unlimited user-labeled entries in four portable forms:
+
+1. personal context;
+2. operating rules;
+3. project standards; and
+4. prose-based universal capabilities.
+
+Users may keep or remove existing modules, except modules referenced by required lifecycle procedures. Every personal entry becomes a separate module with its own explicit export and installation consent. Routing and portability policy carry forward from the source profile. Integration authoring remains unavailable until Saddle has a credential-free declaration contract.
 
 ## Conflicts
 
