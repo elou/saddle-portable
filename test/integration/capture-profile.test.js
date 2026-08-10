@@ -14,7 +14,7 @@ test('selected runtime sections and skills become one valid neutral profile', as
   const runtimeRoot = path.join(root, '.claude');
   await mkdir(path.join(runtimeRoot, 'skills', 'review', 'scripts'), { recursive: true });
   await writeFile(path.join(runtimeRoot, 'CLAUDE.md'), '# Global\n\n## Dev server safety\nCap the complete process tree.\n\n## Session notes\nSave before compact and reload after resume.\n');
-  await writeFile(path.join(runtimeRoot, 'skills', 'review', 'SKILL.md'), '---\nname: review\ndescription: "Check a result against its acceptance criteria."\n---\n# Review\n\nCheck the result.\n');
+  await writeFile(path.join(runtimeRoot, 'skills', 'review', 'SKILL.md'), '---\nname: review\ndescription: >\n  Check a result against its\n  acceptance criteria.\n---\n# Review\n\nCheck the result.\n');
   await writeFile(path.join(runtimeRoot, 'skills', 'review', 'scripts', 'check.sh'), '#!/bin/sh\nexit 0\n');
   const inventory = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot });
   const outputRoot = path.join(root, 'portable');
@@ -36,6 +36,8 @@ test('selected runtime sections and skills become one valid neutral profile', as
   assert.deepEqual(capability.assets.map((asset) => asset.kind), ['script']);
   const capabilityContent = await readFile(path.join(outputRoot, capability.source), 'utf8');
   assert.match(capabilityContent, /Imported capability digest/);
+  assert.match(capabilityContent, /description: "Check a result against its acceptance criteria\."/);
+  assert.doesNotMatch(capabilityContent, /description: ">"/);
   assert.doesNotMatch(capabilityContent, /claude|codex/i);
   assert.match(await readFile(path.join(outputRoot, 'instructions/session-continuity.md'), 'utf8'), /Before context reset/);
   const targetRoot = path.join(root, 'destination-claude');

@@ -106,13 +106,17 @@ Run /exit-check before /clear, /compact, /branch, or /resume.
 test('does not offer a runtime-bound skill as a universal capability', async () => {
   const root = await runtime({
     'skills/provider-bound/SKILL.md': '# Provider workflow\nUse Claude Code and the Agent tool, then run /compact.\n',
+    'skills/slash-command/SKILL.md': '# Invocation\nRun `/five-whys` after a repeated failure.\n',
     'skills/neutral/SKILL.md': '# Neutral workflow\nInspect the evidence, run the relevant checks, and report residuals.\n',
   });
   const { candidates } = await inventoryRuntimeSources({ runtime: 'claude', runtimeRoot: root });
   const providerBound = candidates.find((candidate) => candidate.source.includes('provider-bound'));
+  const slashCommand = candidates.find((candidate) => candidate.source.includes('slash-command'));
   const neutral = candidates.find((candidate) => candidate.source.includes('/neutral/'));
   assert.equal(providerBound.selectable, false);
   assert.match(providerBound.reasons[0], /runtime-specific|neutral CAPABILITY/i);
+  assert.equal(slashCommand.selectable, false);
+  assert.match(slashCommand.reasons[0], /runtime-specific|neutral CAPABILITY/i);
   assert.equal(neutral.selectable, true);
 });
 

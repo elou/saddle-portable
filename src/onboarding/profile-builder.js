@@ -262,11 +262,27 @@ function title(value) {
 function normalizeNeutralCapability(content, capabilityId, sourceDigest) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content);
   const frontmatter = match?.[1] ?? '';
-  const descriptionLine = /^description:\s*(.+?)\s*$/m.exec(frontmatter);
-  let description = descriptionLine?.[1] ?? `Portable capability ${capabilityId}.`;
-  if ((description.startsWith('"') && description.endsWith('"')) || (description.startsWith("'") && description.endsWith("'"))) description = description.slice(1, -1);
+  const description = frontmatterDescription(frontmatter, `Portable capability ${capabilityId}.`);
   const body = match ? content.slice(match[0].length) : content;
   return `---\nname: ${capabilityId}\ndescription: ${JSON.stringify(description)}\n---\n<!-- Imported capability digest: ${sourceDigest}. -->\n\n${body.trim()}\n`;
+}
+
+function frontmatterDescription(frontmatter, fallback) {
+  const lines = frontmatter.split(/\r?\n/);
+  const index = lines.findIndex((line) => /^description\s*:/i.test(line));
+  if (index === -1) return fallback;
+  let value = lines[index].replace(/^description\s*:\s*/i, '').trim();
+  if (/^[>|][+-]?$/.test(value)) {
+    const folded = value.startsWith('>');
+    const parts = [];
+    for (const line of lines.slice(index + 1)) {
+      if (line.trim() && !/^\s+/.test(line)) break;
+      if (line.trim()) parts.push(line.trim());
+    }
+    value = folded ? parts.join(' ') : parts.join('\n');
+  }
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+  return value.trim() || fallback;
 }
 
 async function requireAbsent(outputRoot) {
