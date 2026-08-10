@@ -1,22 +1,21 @@
 # Onboarding
 
-Saddle setup turns authored material from supported runtimes into one neutral profile. It does not copy a runtime directory. The package and setup flow are public and destination-agnostic; each user chooses their own source profile and local installation target.
+Saddle helps put the same instructions into Claude and Codex on a Mac. It does not install either application, copy an entire assistant folder, or transfer credentials, transcripts, trust grants, or permission state.
 
 ## Setup flow
 
-1. Run `saddle setup`.
-2. Enter the absolute home-directory path to inspect.
-3. Select Claude, Codex, or both.
-4. Inventory the authored guidance on that computer.
-5. Review the suggested type and sensitivity for each item.
-6. Select the items to include and choose a new profile directory.
-7. Review each target, module, risk label, and proposed content block.
-8. Confirm each personal or restricted module on the computer where the profile will be applied.
-9. Apply the accepted plan, then run doctor or rollback from the finish screen.
+1. Open `saddle setup`, then choose **Continue to choose assistants**. This only moves to the next step.
+2. Choose the Mac account folder with **Choose folder**, or enter its absolute path. Select Claude, Codex, or both. Saddle only checks their folders at this point.
+3. Choose where the instructions come from.
+   - **Find instructions on this Mac** reads eligible instructions from the selected assistant folders. Name the new setup, choose a parent folder, then select what to bring. Saddle saves a separate setup folder before it reviews installation changes.
+   - **Use a setup from another computer** chooses the Saddle setup folder copied to this Mac. Saddle reads it but does not create a new setup folder. It will show every file before installing anything.
+4. Review the files Saddle will add, update, or remove. Personal or sensitive instructions need individual approval. The technical details disclosure contains the check code and other implementation evidence. Saddle rechecks the instructions and destination files before installing.
+5. Choose **Install these instructions**. Saddle writes only the reviewed managed files and keeps recovery information under `.saddle/` in the selected Mac account folder. It then checks the installed files automatically.
+6. The Done screen confirms that the instruction files are ready. It also makes clear that Saddle did not install or sign in to Claude or Codex. Use **Check installed files** to run the check again, or **Undo this setup** to restore the files from before setup while Saddle's installed files remain unchanged.
 
-Inventory is read-only. Creating a profile writes a new neutral bundle to the directory you choose. Apply writes runtime projections and creates a transaction journal beneath the selected home directory at `.saddle/`.
+Folder choosing uses the Mac folder chooser when it is available. Entering a path remains available if it is not, or if the chooser is cancelled. Choosing a save location selects an existing parent folder; Saddle adds the generated setup id as the new folder name.
 
-## What Saddle offers
+## What Saddle can find
 
 Saddle splits global instruction files at level-two Markdown headings. The heading drives the first classification signal, and the section body provides a fallback signal. Every classification remains advisory.
 
@@ -44,17 +43,17 @@ Saddle applies narrowly defined portable replacements when the intent is clear:
 
 Other unresolved runtime-home references are excluded instead of producing broken destination instructions.
 
-## Default selection
+## What Saddle selects by default
 
 Saddle preselects selectable standard instruction sections. It does not preselect personal context, restricted content, or any capability. Selectable capabilities are optional; when Claude and Codex both contain the same logical capability, the user can choose one source or leave it out. Capabilities containing provider names, runtime-specific tools, or runtime commands remain under **Needs attention** until they are rewritten as a neutral `CAPABILITY.md`. Excluded candidates remain visible with a reason when the inventory can safely describe them.
 
-Selecting an item approves profile creation only. It does not approve runtime permission changes or script execution.
+Selecting an item approves saving it into the separate setup folder only. It does not approve assistant permission changes or script execution.
 
 Personal and restricted modules require a second item-level confirmation before destination apply. The confirmation applies only to the previewed plan and does not become runtime permission.
 
-## Existing profiles
+## Setups from another computer
 
-Select **Use an existing profile** when a portable bundle already exists on the computer where it will be applied. Saddle validates the manifest, content digests, paths, lifecycle references, routing preferences, and portability policy before it creates a plan.
+Choose **Use a setup from another computer** when the folder already exists on this Mac. The folder must contain `saddle.profile.json`. Saddle validates its files and references before it prepares the installation review.
 
 ## Ongoing customization
 

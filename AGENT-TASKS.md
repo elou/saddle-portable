@@ -12,4 +12,4 @@ None yet.
 
 | Issue | Branch | State | Next action |
 | --- | --- | --- | --- |
-| [ELOU-1002](https://linear.app/elou/issue/ELOU-1002/build-standalone-saddle-portable-profile-package) | `codex/elou-1002-universal-profile` | Public release candidate separates short onboarding from open-ended, tier-safe personalization. Final browser acceptance, 107 tests, 32-file pack, exact GitHub install, hosted macOS/Linux CI, no-overwrite/recovery adversarial checks, and independent Sol High review pass. | Execute the first-transfer checklist on any clean physical computer before merging or tagging `v0.1.0`. |
+| [ELOU-1002](https://linear.app/elou/issue/ELOU-1002/build-standalone-saddle-portable-profile-package) | `codex/elou-1002-universal-profile` | First-run copy and controls now use plain language, native folder choosing, a blank-Mac transfer path, exact file review, truthful completion, and a verified undo state. Browser acceptance passed at desktop and phone widths; 108 tests and the 32-file package check pass. | Review the UX script in Roughdraft, then run the same transfer on the physical Mac Mini before merging or tagging `v0.1.0`. |

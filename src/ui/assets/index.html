@@ -22,10 +22,10 @@
       <nav class="progress" id="setup-progress" aria-label="Setup progress">
         <ol>
           <li data-step="1" aria-current="step"><span>01</span> Welcome</li>
-          <li data-step="2"><span>02</span> Runtimes</li>
-          <li data-step="3"><span>03</span> Profile</li>
-          <li data-step="4"><span>04</span> Preview</li>
-          <li data-step="5"><span>05</span> Finish</li>
+          <li data-step="2"><span>02</span> Assistants</li>
+          <li data-step="3"><span>03</span> Instructions</li>
+          <li data-step="4"><span>04</span> Review</li>
+          <li data-step="5"><span>05</span> Done</li>
         </ol>
       </nav>
 
@@ -41,73 +41,83 @@
         <div class="eyebrow" id="step-label">Step 1 of 5</div>
 
         <article class="step is-active" data-panel="1">
-          <h1>Bring your working methods with you.</h1>
-          <p class="lede">Saddle sets up one neutral operating profile, then generates the files Claude and Codex understand. Everything stays on this computer.</p>
+          <h1>Set up Claude and Codex the way you work.</h1>
+          <p class="lede">Saddle can put the same instructions into Claude and Codex on this Mac. Everything stays on this computer.</p>
           <dl class="promise-list">
             <div><dt>Before any write</dt><dd>You will see the exact files and conflicts.</dd></div>
             <div><dt>Never transferred</dt><dd>Credentials, transcripts, trust grants, and runtime permission state.</dd></div>
-            <div><dt>After setup</dt><dd>Doctor verifies managed files. Rollback restores them only while applied targets remain unchanged.</dd></div>
+            <div><dt>After setup</dt><dd>Saddle checks the files it changed. You can undo this setup while those files stay unchanged.</dd></div>
           </dl>
-          <div class="actions"><button class="button button-primary" data-next>Scan this computer</button></div>
+          <div class="actions"><button class="button button-primary" data-next>Continue to choose assistants</button></div>
         </article>
 
         <article class="step" data-panel="2" hidden>
-          <h1>Which runtimes should receive the profile?</h1>
-          <p class="lede">Scanning is read-only. Enter the home directory you want to inspect; Saddle will look only for supported runtime folders.</p>
-          <label class="field-label" for="target-root">Computer home directory</label>
+          <h1>Which assistants are you setting up?</h1>
+          <p class="lede">Saddle checks the Claude and Codex folders in this Mac account. It will not install Claude or Codex.</p>
+          <label class="field-label" for="target-root">Mac account folder</label>
           <div class="field-row">
             <input id="target-root" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/Users/you">
-            <button id="scan-button" class="button button-secondary">Scan</button>
+            <button id="pick-target-root" class="button button-secondary" type="button">Choose folder</button>
+            <button id="scan-button" class="button button-secondary">Check folders</button>
           </div>
+          <div id="target-root-error" aria-live="polite"></div>
           <div id="scan-state" class="result-list" aria-live="polite"></div>
           <fieldset class="runtime-choice">
-            <legend>Install to</legend>
+            <legend>Set up these assistants</legend>
             <label><input type="checkbox" name="runtime" value="claude" checked> <span>Claude</span></label>
             <label><input type="checkbox" name="runtime" value="codex" checked> <span>Codex</span></label>
           </fieldset>
-          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" data-next disabled id="runtime-next">Continue</button></div>
+          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" data-next disabled id="runtime-next">Continue with selected assistants</button></div>
         </article>
 
         <article class="step" data-panel="3" hidden>
-          <h1>Build the neutral profile.</h1>
-          <p class="lede">Start from the authored guidance already on this computer, or use a Saddle profile you transferred here.</p>
-          <div class="mode-switch" role="radiogroup" aria-label="Profile source">
-            <label><input type="radio" name="profile-mode" value="capture" checked> Build from this computer</label>
-            <label><input type="radio" name="profile-mode" value="existing"> Use an existing profile</label>
+          <h1>Where are your instructions coming from?</h1>
+          <p class="lede">Find instructions already on this Mac, or choose a Saddle setup brought from another computer.</p>
+          <div class="mode-switch" role="radiogroup" aria-label="Instruction source">
+            <label><input type="radio" name="profile-mode" value="capture" checked> Find instructions on this Mac</label>
+            <label><input type="radio" name="profile-mode" value="existing"> Use a setup from another computer</label>
           </div>
 
           <div id="capture-mode">
-            <div class="two-fields">
-              <label><span class="field-label">Profile name</span><input id="profile-name" class="field" value="My profile" autocomplete="off"></label>
-              <label><span class="field-label">Profile id</span><input id="profile-id" class="field" value="my-profile" autocomplete="off" spellcheck="false"></label>
+            <label><span class="field-label">Name this setup</span><input id="profile-name" class="field" value="My setup" autocomplete="off"></label>
+            <input id="profile-id" type="hidden" value="my-setup">
+            <label class="field-label" for="capture-output">Save this new setup folder to</label>
+            <div class="field-row">
+              <input id="capture-output" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/Users/you/saddle-setups/my-setup">
+              <button id="pick-capture-output" class="button button-secondary" type="button">Choose folder</button>
             </div>
-            <label class="field-label" for="capture-output">Save the neutral profile to</label>
-            <input id="capture-output" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/Users/you/saddle-profiles/my-profile">
-            <button id="inventory-button" class="button button-secondary inline-action">Inventory authored guidance</button>
+            <div id="capture-output-error" aria-live="polite"></div>
+            <button id="inventory-button" class="button button-secondary inline-action">Find instructions on this Mac</button>
             <div id="inventory-state" class="candidate-list"></div>
+            <aside class="notice"><strong>Choose what to bring.</strong> Safe, general instructions start selected. Personal details, scripts, unsafe content, and files made by an assistant are never selected automatically.</aside>
           </div>
 
           <div id="existing-mode" hidden>
-            <label class="field-label" for="profile-root">Existing profile directory</label>
-            <input id="profile-root" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/path/to/my-profile">
+            <label class="field-label" for="profile-root">Choose your Saddle setup folder</label>
+            <div class="field-row">
+              <input id="profile-root" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/path/to/saddle-setup">
+              <button id="pick-profile-root" class="button button-secondary" type="button">Choose folder</button>
+            </div>
+            <div id="profile-root-error" aria-live="polite"></div>
+            <aside class="notice">This is the folder copied from your other computer. Saddle will show every file before installing anything.</aside>
           </div>
-          <aside class="notice"><strong>Suggestions are advisory.</strong> Low-risk operating and continuity guidance is preselected. Personal context, scripts, unsafe content, and generated runtime files are never selected automatically.</aside>
-          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" id="preview-button">Create profile and preview</button></div>
+          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" id="preview-button">Save these instructions and review changes</button></div>
         </article>
 
         <article class="step" data-panel="4" hidden>
-          <h1>Review every proposed change.</h1>
-          <p class="lede">The digest binds Apply to this exact profile and filesystem state. If either changes, Saddle stops and asks for a new preview.</p>
+          <h1>Review what Saddle will change.</h1>
+          <p class="lede">Check the files Saddle will add or update before it changes this Mac.</p>
           <div id="preview-state" class="preview"></div>
-          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" id="apply-button" disabled>Apply this preview</button></div>
+          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" id="apply-button" disabled>Install these instructions</button></div>
         </article>
 
         <article class="step" data-panel="5" hidden>
           <div class="success-mark" aria-hidden="true">✓</div>
-          <h1 id="finish-title">Profile installed and verified.</h1>
-          <p class="lede" id="finish-copy">Claude and Codex can now reference the same operating profile. Keep the source bundle; generated runtime files are outputs.</p>
+          <h1 id="finish-title">Your instruction files are ready.</h1>
+          <p class="lede" id="finish-copy">Saddle installed and checked the files for Claude and Codex. It did not install or sign in to either app.</p>
           <dl class="finish-details" id="finish-details"></dl>
-          <div class="actions"><button class="button button-secondary" id="doctor-button">Run doctor</button><button class="button button-ghost danger" id="rollback-button">Roll back</button></div>
+          <p class="first-task">Next, install or open one selected assistant and ask it to explain the instructions Saddle added.</p>
+          <div class="actions"><button class="button button-secondary" id="doctor-button">Check installed files</button><button class="button button-ghost danger" id="rollback-button">Undo this setup</button></div>
           <div id="recovery-state" class="notice" hidden></div>
         </article>
       </section>

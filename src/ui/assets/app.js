@@ -10,7 +10,11 @@ document.querySelector('#apply-button').addEventListener('click', apply);
 document.querySelector('#doctor-button').addEventListener('click', doctor);
 document.querySelector('#rollback-button').addEventListener('click', rollback);
 document.querySelector('#inventory-button').addEventListener('click', inventory);
+document.querySelector('#pick-target-root').addEventListener('click', () => pickInto('target-root', 'mac-account'));
+document.querySelector('#pick-profile-root').addEventListener('click', () => pickInto('profile-root', 'existing-setup'));
+document.querySelector('#pick-capture-output').addEventListener('click', pickCaptureOutput);
 document.querySelectorAll('input[name="profile-mode"]').forEach((input) => input.addEventListener('change', switchProfileMode));
+document.querySelector('#profile-name').addEventListener('input', syncProfileId);
 document.querySelector('#add-custom-entry').addEventListener('click', () => addCustomEntry());
 document.querySelector('#customize-preview-button').addEventListener('click', previewCustomizationDraft);
 document.querySelector('#customize-back-button').addEventListener('click', () => showCustomizeStep(1));
@@ -281,16 +285,25 @@ function showStep(step) {
 async function scan() {
   const targetRoot = document.querySelector('#target-root').value.trim();
   const container = document.querySelector('#scan-state');
-  if (!targetRoot) return renderError(container, 'Enter an absolute home directory.');
-  container.innerHTML = '<p class="loading">Scanning supported runtime folders…</p>';
+  if (!targetRoot) return renderError(container, 'Choose this Mac account folder or enter its full path.');
+  container.innerHTML = '<p class="loading">Checking Claude and Codex folders…</p>';
   try {
     const data = await api('/api/scan', { targetRoot, runtimes: selectedRuntimes() });
     state.targetRoot = data.targetRoot;
     container.replaceChildren(...data.results.map((result) => row(
       result.detected ? '●' : '○',
       result.id === 'claude' ? 'Claude' : 'Codex',
-      result.detected ? 'Runtime folder detected' : 'No runtime folder yet — Saddle can create managed files',
+      result.detected ? 'Saddle found this assistant’s folder' : 'No folder found yet — Saddle can create its managed files here',
     )));
+    if (!data.results.some((result) => result.detected)) {
+      const existingMode = document.querySelector('input[name="profile-mode"][value="existing"]');
+      existingMode.checked = true;
+      switchProfileMode();
+      const guidance = document.createElement('p');
+      guidance.className = 'notice';
+      guidance.textContent = 'No existing setup was found. Next, choose the Saddle setup you brought from another computer.';
+      container.append(guidance);
+    }
     document.querySelector('#runtime-next').disabled = false;
   } catch (error) {
     renderError(container, error.message);
@@ -303,9 +316,9 @@ async function preview() {
     state.runtimes = selectedRuntimes();
     if (profileMode() === 'capture') await captureProfile();
     else state.profileRoot = document.querySelector('#profile-root').value.trim();
-    if (!state.profileRoot || !state.targetRoot) throw new Error('Profile and target paths are required.');
+    if (!state.profileRoot || !state.targetRoot) throw new Error('Choose the Saddle setup folder and the Mac account you want to set up.');
     showStep(4);
-    container.innerHTML = '<p class="loading">Reading the profile and current target state…</p>';
+    container.innerHTML = '<p class="loading">Checking your instructions and current files…</p>';
     document.querySelector('#apply-button').disabled = true;
     state.preview = await api('/api/plan', requestBody());
     container.replaceChildren(renderPreview(state.preview));
@@ -318,7 +331,7 @@ async function preview() {
 
 async function inventory() {
   const container = document.querySelector('#inventory-state');
-  container.innerHTML = '<p class="loading">Reading authored sections and capability entrypoints…</p>';
+  container.innerHTML = '<p class="loading">Finding instructions on this Mac…</p>';
   try {
     state.runtimes = selectedRuntimes();
     const result = await api('/api/inventory', { targetRoot: state.targetRoot, runtimes: state.runtimes });
@@ -334,8 +347,8 @@ async function captureProfile() {
   const id = document.querySelector('#profile-id').value.trim();
   const selections = [...document.querySelectorAll('.candidate-selection:checked')]
     .map((input) => ({ runtime: input.dataset.runtime, id: input.value }));
-  if (!outputRoot || !name || !id) throw new Error('Profile name, id, and save location are required.');
-  if (!selections.length) throw new Error('Select at least one authored item to capture.');
+  if (!outputRoot || !name || !id) throw new Error('Name this setup and choose where to save it.');
+  if (!selections.length) throw new Error('Choose at least one instruction to save.');
   await api('/api/capture', {
     targetRoot: state.targetRoot,
     outputRoot,
@@ -349,7 +362,40 @@ function switchProfileMode() {
   const capture = profileMode() === 'capture';
   document.querySelector('#capture-mode').hidden = !capture;
   document.querySelector('#existing-mode').hidden = capture;
-  document.querySelector('#preview-button').textContent = capture ? 'Create profile and preview' : 'Build preview';
+  document.querySelector('#preview-button').textContent = capture ? 'Save these instructions and review changes' : 'Review files before installing';
+}
+
+function syncProfileId() {
+  document.querySelector('#profile-id').value = slug(document.querySelector('#profile-name').value) || 'my-setup';
+}
+
+async function pickInto(fieldId, purpose) {
+  const field = document.querySelector(`#${fieldId}`);
+  const errorContainer = document.querySelector(`#${fieldId}-error`);
+  errorContainer.replaceChildren();
+  try {
+    const result = await api('/api/pick-directory', { purpose, defaultPath: field.value.trim() || '/Users' });
+    field.value = result.path;
+  } catch (error) {
+    renderError(errorContainer, error.message);
+  }
+}
+
+async function pickCaptureOutput() {
+  const field = document.querySelector('#capture-output');
+  const errorContainer = document.querySelector('#capture-output-error');
+  errorContainer.replaceChildren();
+  try {
+    const result = await api('/api/pick-directory', { purpose: 'new-setup', defaultPath: parentDirectory(field.value.trim()) || '/Users' });
+    field.value = `${result.path.replace(/\/$/, '')}/${document.querySelector('#profile-id').value}`;
+  } catch (error) {
+    renderError(errorContainer, error.message);
+  }
+}
+
+function parentDirectory(value) {
+  const slash = value.lastIndexOf('/');
+  return slash > 0 ? value.slice(0, slash) : '';
 }
 
 function profileMode() {
@@ -364,9 +410,9 @@ function renderInventory(inventories) {
   const personal = entries.filter(({ candidate }) => candidate.selectable && candidate.suggestedSensitivity === 'personal');
   const attention = entries.filter(({ candidate }) => !candidate.selectable || (candidate.suggestedSensitivity === 'restricted' && candidate.sourceType !== 'capability'));
 
-  wrapper.append(renderCandidateSection('Recommended foundation', 'Portable instruction sections selected by default.', foundation, { checked: true }));
+  wrapper.append(renderCandidateSection('Suggested instructions', 'General instructions are selected to start.', foundation, { checked: true }));
   wrapper.append(renderCapabilities(capabilities));
-  wrapper.append(renderCandidateSection('Personalization', 'Personal context stays optional and requires consent before it can be applied.', personal));
+  wrapper.append(renderCandidateSection('Personal details', 'Personal details stay optional and need your approval before Saddle installs them.', personal));
 
   const warnings = inventories.flatMap((inventoryResult) => inventoryResult.warnings.map((warning) => ({ ...warning, runtime: inventoryResult.runtime })));
   wrapper.append(renderNeedsAttention(attention, warnings));
@@ -387,11 +433,11 @@ function renderCandidateSection(title, copy, entries, options = {}) {
 
 function renderCapabilities(entries) {
   const section = document.createElement('section'); section.className = 'candidate-group';
-  const heading = document.createElement('h2'); heading.textContent = 'Optional capabilities';
-  const explanation = document.createElement('p'); explanation.className = 'candidate-section-copy'; explanation.textContent = 'No capability is required for setup. Choose only portable workflows you use; one universal capability will project to every selected runtime.';
+  const heading = document.createElement('h2'); heading.textContent = 'Optional tools';
+  const explanation = document.createElement('p'); explanation.className = 'candidate-section-copy'; explanation.textContent = 'No tool is required. Choose only workflows you use; Saddle can make them available to each assistant you selected.';
   section.append(heading, explanation);
   if (!entries.length) {
-    const empty = document.createElement('p'); empty.className = 'candidate-reason'; empty.textContent = 'No portable capabilities found.'; section.append(empty);
+    const empty = document.createElement('p'); empty.className = 'candidate-reason'; empty.textContent = 'No optional tools found.'; section.append(empty);
     return section;
   }
   const groups = new Map();
@@ -420,7 +466,7 @@ function renderCapabilitySkipChoice(id) {
   const label = document.createElement('label'); label.className = 'candidate';
   const input = document.createElement('input'); input.type = 'radio'; input.name = `capability-${id}`; input.checked = true;
   const title = document.createElement('span'); title.className = 'candidate-title'; title.textContent = 'Do not include';
-  const detail = document.createElement('span'); detail.className = 'candidate-reason'; detail.textContent = 'Keep this universal capability out of the profile.';
+  const detail = document.createElement('span'); detail.className = 'candidate-reason'; detail.textContent = 'Do not bring this tool into the new setup.';
   label.append(input, title, detail);
   return label;
 }
@@ -428,7 +474,7 @@ function renderCapabilitySkipChoice(id) {
 function renderNeedsAttention(entries, warnings) {
   const details = document.createElement('details'); details.className = 'candidate-group needs-attention';
   const summary = document.createElement('summary'); summary.textContent = `Needs attention · ${entries.length + warnings.length}`;
-  const copy = document.createElement('p'); copy.className = 'candidate-section-copy'; copy.textContent = 'These items are excluded, restricted instruction sections, or need review before capture.';
+  const copy = document.createElement('p'); copy.className = 'candidate-section-copy'; copy.textContent = 'These items are excluded, need extra care, or need review before saving.';
   details.append(summary, copy);
   if (!entries.length && !warnings.length) {
     const empty = document.createElement('p'); empty.className = 'candidate-reason'; empty.textContent = 'Nothing needs review.'; details.append(empty);
@@ -473,7 +519,7 @@ function slug(value) {
 async function apply() {
   const button = document.querySelector('#apply-button');
   button.disabled = true;
-  button.textContent = 'Applying…';
+  button.textContent = 'Installing…';
   try {
     state.result = await api('/api/apply', {
       ...requestBody(),
@@ -485,9 +531,9 @@ async function apply() {
     renderFinish();
     showStep(5);
     if (!exact) {
-      document.querySelector('#finish-title').textContent = 'The apply needs attention.';
-      document.querySelector('#finish-copy').textContent = 'Verification did not pass. Roll back this transaction before continuing.';
-      renderError(document.querySelector('#recovery-state'), state.result.verificationError ?? 'The files changed, but Saddle could not verify the installed profile. Use Roll back this setup below.');
+      document.querySelector('#finish-title').textContent = 'This setup needs attention.';
+      document.querySelector('#finish-copy').textContent = 'Saddle changed files but could not finish checking them. Undo this setup before continuing.';
+      renderError(document.querySelector('#recovery-state'), state.result.verificationError ?? 'The files changed, but Saddle could not check them. Use Undo this setup below.');
     }
   } catch (error) {
     renderError(document.querySelector('#preview-state'), error.message);
@@ -500,7 +546,7 @@ async function apply() {
 async function doctor() {
   const recovery = document.querySelector('#recovery-state');
   recovery.hidden = false;
-  recovery.textContent = 'Checking managed files and lifecycle support…';
+  recovery.textContent = 'Checking installed files…';
   try {
     const result = await api('/api/doctor', requestBody());
     recovery.textContent = result.results.map((item) => `${item.runtime}: ${item.verification.status}`).join(' · ');
@@ -513,16 +559,18 @@ async function rollback() {
   if (!state.result?.transaction?.id) return;
   const recovery = document.querySelector('#recovery-state');
   recovery.hidden = false;
-  recovery.textContent = 'Restoring the previous files…';
+  recovery.textContent = 'Restoring the files from before setup…';
   try {
     await api('/api/rollback', {
       transactionId: state.result.transaction.id,
       targetRoot: state.targetRoot,
       stateRoot: `${state.targetRoot}/.saddle`,
     });
-    document.querySelector('#finish-title').textContent = 'The profile was rolled back.';
-    document.querySelector('#finish-copy').textContent = 'Saddle restored the files that existed before this setup transaction.';
-    recovery.textContent = 'Rollback verified.';
+    document.querySelector('#finish-title').textContent = 'This setup was undone.';
+    document.querySelector('#finish-copy').textContent = 'Saddle restored the files that were there before this setup.';
+    document.querySelector('.first-task').textContent = 'Nothing from this setup remains installed. You can close Saddle or start again.';
+    recovery.textContent = 'Files restored and checked.';
+    document.querySelector('#doctor-button').disabled = true;
     document.querySelector('#rollback-button').disabled = true;
   } catch (error) {
     renderError(recovery, error.message);
@@ -531,7 +579,7 @@ async function rollback() {
 
 function selectedRuntimes() {
   const values = [...document.querySelectorAll('input[name="runtime"]:checked')].map((input) => input.value);
-  if (!values.length) throw new Error('Select at least one runtime.');
+  if (!values.length) throw new Error('Choose Claude, Codex, or both.');
   return values;
 }
 
@@ -571,21 +619,25 @@ function row(symbol, title, detail) {
 
 function renderPreview(previewData) {
   const wrapper = document.createElement('div');
+  const assurance = document.createElement('p'); assurance.className = 'candidate-section-copy'; assurance.textContent = 'Saddle will recheck the files before installing them.';
+  const technical = document.createElement('details'); technical.className = 'technical-details';
+  const technicalSummary = document.createElement('summary'); technicalSummary.textContent = 'Technical details'; technical.append(technicalSummary);
   const metadata = document.createElement('dl'); metadata.className = 'preview-meta';
-  for (const [label, value] of [['Profile', `${previewData.plan.profile.id}@${previewData.plan.profile.version}`], ['Plan digest', previewData.digest], ['Target', previewData.plan.targetRoot]]) {
+  for (const [label, value] of [['Setup', `${previewData.plan.profile.id}@${previewData.plan.profile.version}`], ['Check code', previewData.digest], ['Mac account', previewData.plan.targetRoot]]) {
     const term = document.createElement('dt'); term.textContent = label;
     const detail = document.createElement('dd'); detail.textContent = value;
     metadata.append(term, detail);
   }
+  technical.append(metadata);
   if (previewData.requiredConsents?.length) {
     const consent = document.createElement('fieldset'); consent.className = 'consent-list';
-    const legend = document.createElement('legend'); legend.textContent = 'Confirm destination use';
-    const explanation = document.createElement('p'); explanation.textContent = 'These items are personal or restricted. Confirm each item before Apply.';
+    const legend = document.createElement('legend'); legend.textContent = 'Approve personal or sensitive instructions';
+    const explanation = document.createElement('p'); explanation.textContent = 'Choose each item you want Saddle to install on this Mac.';
     consent.append(legend, explanation);
     for (const item of previewData.requiredConsents) {
       const label = document.createElement('label');
       const input = document.createElement('input'); input.type = 'checkbox'; input.name = 'import-consent'; input.value = item.id;
-      const copy = document.createElement('span'); copy.textContent = `${item.id} · ${item.kind} · ${item.sensitivity}`;
+      const copy = document.createElement('span'); copy.textContent = `Install “${item.id}” (${humanKind(item.kind)})`;
       label.append(input, copy); consent.append(label);
     }
     wrapper.append(consent);
@@ -593,36 +645,51 @@ function renderPreview(previewData) {
   const operations = document.createElement('div');
   previewData.plan.operations.forEach((item) => {
     const operation = document.createElement('div'); operation.className = 'operation';
-    const action = document.createElement('strong'); action.textContent = item.action.replaceAll('-', ' ');
+    const action = document.createElement('strong'); action.textContent = humanAction(item.action);
     if (item.risk === 'personal' || item.risk === 'restricted' || item.risk === 'high') action.className = 'risk-high';
     const copy = document.createElement('div');
     const target = document.createElement('code'); target.textContent = item.target;
+    const explanation = document.createElement('small'); explanation.textContent = humanOperationExplanation(item);
+    copy.append(target, document.createElement('br'), explanation);
+    const operationTechnical = document.createElement('details'); operationTechnical.className = 'operation-technical';
+    const operationTechnicalSummary = document.createElement('summary'); operationTechnicalSummary.textContent = 'Technical details';
     const reason = document.createElement('small'); reason.textContent = item.reason;
-    copy.append(target, document.createElement('br'), reason);
+    operationTechnical.append(operationTechnicalSummary, reason);
     if (item.sourceModules?.length) {
       const modules = document.createElement('small'); modules.className = 'operation-modules'; modules.textContent = `Modules: ${item.sourceModules.join(', ')} · Risk: ${item.risk}`;
-      copy.append(document.createElement('br'), modules);
+      operationTechnical.append(document.createElement('br'), modules);
     }
+    copy.append(operationTechnical);
     if (typeof item.content === 'string') {
       const details = document.createElement('details'); details.className = 'content-preview';
-      const summary = document.createElement('summary'); summary.textContent = 'Review proposed content';
+      const summary = document.createElement('summary'); summary.textContent = 'See the file contents';
       const pre = document.createElement('pre'); pre.textContent = item.content;
       details.append(summary, pre); copy.append(details);
     }
     operation.append(action, copy);
     operations.append(operation);
   });
-  wrapper.append(metadata, operations);
+  wrapper.append(assurance, technical, operations);
   return wrapper;
+}
+
+function humanAction(action) {
+  return ({ 'create-file': 'Add file', 'replace-file': 'Update file', 'delete-file': 'Remove file' })[action] ?? action.replaceAll('-', ' ');
+}
+
+function humanOperationExplanation(item) {
+  const assistant = item.target.startsWith('.claude/') ? 'Claude' : item.target.startsWith('.codex/') ? 'Codex' : 'the assistant';
+  if (item.action === 'delete-file') return 'This removes a Saddle file that is no longer needed.';
+  return `This file gives ${assistant} the instructions you selected.`;
 }
 
 function renderFinish() {
   const details = document.querySelector('#finish-details');
   details.replaceChildren();
   for (const [label, value] of [
-    ['Transaction', state.result.transaction.id],
-    ['Profile source', state.profileRoot],
-    ['Installed to', state.targetRoot],
+    ['Instructions from', state.profileRoot],
+    ['Set up', state.runtimes.map(runtimeName).join(' and ')],
+    ['Mac account', state.targetRoot],
   ]) {
     const rowElement = document.createElement('div');
     const term = document.createElement('dt'); term.textContent = label;

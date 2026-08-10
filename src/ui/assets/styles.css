@@ -56,7 +56,7 @@ dt { font-size: 13px; font-weight: 700; }
 dd { margin: 0; color: var(--muted); }
 
 .field-label { display: block; margin-block-end: 8px; font-size: 13px; font-weight: 700; }
-.field-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.field-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
 .field { inline-size: 100%; min-block-size: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); background: var(--surface); }
 .field:hover { border-color: var(--muted); }
 .field:focus-visible, .button:focus-visible, input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible { outline: 3px solid color-mix(in oklch, var(--focus) 45%, transparent); outline-offset: 2px; }
@@ -117,6 +117,10 @@ dd { margin: 0; color: var(--muted); }
 .preview-meta { display: grid; grid-template-columns: 100px 1fr; gap: 8px 16px; margin-block-end: 24px; font-size: 14px; }
 .preview-meta dt { color: var(--muted); }
 .preview-meta dd { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.technical-details { margin-block-end: 24px; }
+.technical-details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.technical-details[open] summary { margin-block-end: 12px; }
+.first-task { margin: 0; color: var(--muted); font-size: 14px; }
 .consent-list { margin: 0 0 24px; padding: 16px; border: 1px solid color-mix(in oklch, var(--danger) 35%, var(--line)); }
 .consent-list legend { padding-inline: 6px; font-weight: 700; }
 .consent-list p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
@@ -124,6 +128,8 @@ dd { margin: 0; color: var(--muted); }
 .consent-list input { inline-size: 18px; block-size: 18px; accent-color: var(--danger); }
 .operation { grid-template-columns: 92px 1fr; }
 .operation code { color: var(--ink); overflow-wrap: anywhere; }
+.operation-technical { margin-block-start: 8px; }
+.operation-technical summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .operation-modules { display: inline-block; margin-block-start: 4px; }
 .content-preview { margin-block-start: 10px; }
 .content-preview summary { cursor: pointer; color: var(--accent); font-size: 13px; font-weight: 650; }

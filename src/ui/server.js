@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import http from 'node:http';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,6 +24,7 @@ export function createSetupServer({
   token = randomBytes(24).toString('base64url'),
   initialState,
   config = { mode: 'setup' },
+  pickDirectory = pickDirectoryOnMac,
 } = {}) {
   const setupConfig = normalizeSetupConfig(config, initialState);
   let listener;
@@ -59,6 +62,11 @@ export function createSetupServer({
       if (!authorized(request, url, token)) return forbidden(response);
       const body = await readJson(request);
 
+      if (url.pathname === '/api/pick-directory') {
+        const requestData = directoryPickerRequest(body);
+        const selected = await pickDirectory(requestData);
+        return json(response, 200, { path: requiredAbsolute(selected, 'selected folder') });
+      }
       if (url.pathname === '/api/scan') {
         const targetRoot = requiredAbsolute(body.targetRoot, 'targetRoot');
         const runtimes = parseRuntimeSelection(body.runtimes?.join?.(',') ?? body.runtimes);
@@ -226,6 +234,43 @@ function customizationRequest(body) {
 
 function sourceRootRequest(body) {
   return requiredAbsolute(body.sourceRoot ?? body.targetRoot, body.sourceRoot === undefined ? 'targetRoot' : 'sourceRoot');
+}
+
+function directoryPickerRequest(body) {
+  const purpose = body?.purpose;
+  if (!['mac-account', 'existing-setup', 'new-setup'].includes(purpose)) {
+    throw new RequestError('Choose a valid folder purpose.');
+  }
+  return { purpose, defaultPath: requiredAbsolute(body.defaultPath, 'defaultPath') };
+}
+
+async function pickDirectoryOnMac({ defaultPath, purpose }) {
+  if (os.platform() !== 'darwin') {
+    throw new RequestError('Folder choosing is available on macOS. Enter the folder path instead.');
+  }
+  const prompt = ({
+    'mac-account': 'Choose the Mac account folder to set up',
+    'existing-setup': 'Choose the Saddle setup from another computer',
+    'new-setup': 'Choose where to save the new Saddle setup',
+  })[purpose];
+  const script = 'on run argv\nset chosenFolder to choose folder with prompt (item 2 of argv) default location (POSIX file (item 1 of argv))\nreturn POSIX path of chosenFolder\nend run';
+  try {
+    return await new Promise((resolve, reject) => {
+      const child = spawn('/usr/bin/osascript', ['-e', script, defaultPath, prompt], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let output = '';
+      let error = '';
+      child.stdout.on('data', (chunk) => { output += chunk; });
+      child.stderr.on('data', (chunk) => { error += chunk; });
+      child.once('error', () => reject(new RequestError('Saddle could not open the folder chooser. Enter the folder path instead.')));
+      child.once('close', (code) => {
+        if (code === 0) return resolve(output.trim());
+        reject(new RequestError(error.includes('User canceled') ? 'Folder selection was cancelled. Enter the folder path instead.' : 'Saddle could not open the folder chooser. Enter the folder path instead.'));
+      });
+    });
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    throw new RequestError('Saddle could not open the folder chooser. Enter the folder path instead.');
+  }
 }
 
 function normalizeSetupConfig(config, initialState) {

@@ -18,7 +18,7 @@ test('setup server is loopback-only, token protected, and serves the onboarding 
   const page = await fetch(listener.url);
   assert.equal(page.status, 200);
   const pageSource = await page.text();
-  assert.match(pageSource, /Bring your working methods with you/);
+  assert.match(pageSource, /Set up Claude and Codex the way you work\./);
   assert.doesNotMatch(pageSource, /\bTerra\b/);
   assert.match(page.headers.get('content-security-policy'), /default-src 'self'/);
 
@@ -44,6 +44,72 @@ test('setup server is loopback-only, token protected, and serves the onboarding 
   });
   assert.equal(scan.status, 200);
   assert.deepEqual((await scan.json()).results.map((item) => item.id), ['claude', 'codex']);
+});
+
+test('setup uses plain first-run language and offers a native folder chooser', async (t) => {
+  const chosen = path.join(await mkdtemp(path.join(os.tmpdir(), 'saddle-picker-')), 'transferred-setup');
+  const calls = [];
+  const setup = createSetupServer({
+    token: 'plain-setup-token',
+    pickDirectory: async (request) => {
+      calls.push(request);
+      return request.purpose === 'new-setup' ? 'relative-folder' : chosen;
+    },
+  });
+  const listener = await setup.listen();
+  t.after(() => setup.close());
+
+  const page = await fetch(listener.url);
+  const pageSource = await page.text();
+  assert.match(pageSource, /Set up Claude and Codex the way you work\./);
+  assert.match(pageSource, /Which assistants are you setting up\?/);
+  assert.match(pageSource, /Where are your instructions coming from\?/);
+  assert.match(pageSource, /Review what Saddle will change\./);
+  assert.match(pageSource, /Choose folder/);
+  assert.match(pageSource, /Choose your Saddle setup folder/);
+  assert.match(pageSource, /This is the folder copied from your other computer\. Saddle will show every file before installing anything\./);
+  assert.match(pageSource, /Continue with selected assistants/);
+  assert.match(pageSource, /Install these instructions/);
+  assert.match(pageSource, /Check installed files/);
+  assert.match(pageSource, /Undo this setup/);
+  assert.match(pageSource, /Your instruction files are ready\./);
+  assert.match(pageSource, /It did not install or sign in to either app\./);
+  assert.doesNotMatch(pageSource, /neutral operating profile|Build the neutral profile|authored guidance|Which runtimes|digest binds|Run doctor|Apply this preview/i);
+
+  const app = await fetch(`http://127.0.0.1:${listener.port}/app.js`);
+  const appSource = await app.text();
+  assert.match(appSource, /Finding instructions on this Mac/);
+  assert.match(appSource, /Save these instructions and review changes/);
+  assert.match(appSource, /Review files before installing/);
+  assert.match(appSource, /Saddle will recheck the files before installing them/);
+  assert.match(appSource, /This file gives \$\{assistant\} the instructions you selected\./);
+  assert.match(appSource, /See the file contents/);
+  assert.match(appSource, /No existing setup was found\. Next, choose the Saddle setup you brought from another computer\./);
+  assert.match(appSource, /Nothing from this setup remains installed\. You can close Saddle or start again\./);
+  assert.doesNotMatch(appSource, /Inventory authored guidance|Portable instruction sections|universal capability will project|Confirm destination use|Plan digest/i);
+
+  const picked = await fetch(`http://127.0.0.1:${listener.port}/api/pick-directory`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-saddle-token': listener.token },
+    body: JSON.stringify({ purpose: 'existing-setup', defaultPath: path.dirname(chosen) }),
+  });
+  assert.equal(picked.status, 200);
+  assert.deepEqual(await picked.json(), { path: chosen });
+  assert.deepEqual(calls, [{ purpose: 'existing-setup', defaultPath: path.dirname(chosen) }]);
+
+  const invalidPurpose = await fetch(`http://127.0.0.1:${listener.port}/api/pick-directory`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-saddle-token': listener.token },
+    body: JSON.stringify({ purpose: 'anything', defaultPath: path.dirname(chosen) }),
+  });
+  assert.equal(invalidPurpose.status, 400);
+
+  const relativeSelection = await fetch(`http://127.0.0.1:${listener.port}/api/pick-directory`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-saddle-token': listener.token },
+    body: JSON.stringify({ purpose: 'new-setup', defaultPath: path.dirname(chosen) }),
+  });
+  assert.equal(relativeSelection.status, 400);
 });
 
 test('setup server rejects non-loopback bind requests', async () => {
