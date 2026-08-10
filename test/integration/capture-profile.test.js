@@ -71,6 +71,23 @@ test('capture rereads candidates, rejects drift, and leaves no partial output', 
   await assert.rejects(stat(outputRoot), { code: 'ENOENT' });
 });
 
+test('profile creation copies only inventory-approved neutral capability assets', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'saddle-capture-assets-'));
+  const runtimeRoot = path.join(root, '.codex');
+  await mkdir(path.join(runtimeRoot, 'skills', 'rubric', 'agents'), { recursive: true });
+  await mkdir(path.join(runtimeRoot, 'skills', 'rubric', 'references'), { recursive: true });
+  await writeFile(path.join(runtimeRoot, 'skills', 'rubric', 'SKILL.md'), '# Rubric\nAssess evidence.\n');
+  await writeFile(path.join(runtimeRoot, 'skills', 'rubric', 'agents', 'openai.yaml'), 'adapter: portable\n');
+  await writeFile(path.join(runtimeRoot, 'skills', 'rubric', 'references', 'rubric.md'), '# Rubric\nUse evidence.\n');
+  const { candidates } = await inventoryRuntimeSources({ runtime: 'codex', runtimeRoot });
+  const candidate = candidates.find((item) => item.source === 'skills/rubric/SKILL.md');
+  await writeFile(path.join(runtimeRoot, 'skills', 'rubric', 'agents', 'openai.yaml'), 'api_key=must-not-be-read\n');
+  const outputRoot = path.join(root, 'portable');
+  await createProfileFromCandidates({ sources: [{ runtimeRoot, candidate }], outputRoot, profile: { id: 'neutral-assets', name: 'Neutral assets' } });
+  assert.equal(await readFile(path.join(outputRoot, 'capabilities', 'rubric', 'references', 'rubric.md'), 'utf8'), '# Rubric\nUse evidence.\n');
+  await assert.rejects(stat(path.join(outputRoot, 'capabilities', 'rubric', 'agents', 'openai.yaml')), { code: 'ENOENT' });
+});
+
 test('capture rejects selected capabilities with the same canonical skill directory before writing', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'saddle-capture-collision-'));
   const claudeRoot = path.join(root, '.claude');

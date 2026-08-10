@@ -128,6 +128,21 @@ test('inventories capability assets and marks scripts restricted', async () => {
   assert.deepEqual(skill.assets.map((asset) => [asset.path, asset.kind]), [['skills/example/references/guide.md', 'reference'], ['skills/example/scripts/check.sh', 'script']]);
 });
 
+test('excludes provider adapter and runtime-guidance assets while preserving neutral capability references', async () => {
+  const root = await runtime({
+    'skills/rubric/SKILL.md': '# Rubric\nAssess evidence.\n',
+    'skills/rubric/agents/openai.yaml': 'adapter: portable\n',
+    'skills/rubric/references/rubric.md': '# Rubric\nUse evidence.\n',
+    'skills/rubric/references/runtime-note.md': 'Use Claude Code before reviewing.\n',
+  });
+  const { candidates, warnings } = await inventoryRuntimeSources({ runtime: 'codex', runtimeRoot: root });
+  const capability = candidates.find((candidate) => candidate.source === 'skills/rubric/SKILL.md');
+  assert.equal(capability.selectable, true);
+  assert.deepEqual(capability.assets.map((asset) => asset.path), ['skills/rubric/references/rubric.md']);
+  assert.ok(warnings.some((warning) => warning.source === 'skills/rubric/agents/openai.yaml' && /provider-specific capability adapter/i.test(warning.reason)));
+  assert.ok(warnings.some((warning) => warning.source === 'skills/rubric/references/runtime-note.md' && /runtime-specific/i.test(warning.reason)));
+});
+
 test('rejects prose slash invocations while preserving neutral absolute-path examples', async () => {
   const root = await runtime({
     'skills/invocation/SKILL.md': 'Use when the user invokes /pre-mortem or $pre-mortem.\n',

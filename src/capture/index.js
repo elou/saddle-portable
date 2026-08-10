@@ -14,6 +14,7 @@ const RUNTIME_BOUND_GUIDANCE = /\b(?:Anthropic|Claude(?: Code)?|Codex|OpenAI|Cha
 const BACKTICK_SKILL_INVOCATION = /`\$[a-z][a-z0-9-]*`/;
 const LOWERCASE_INVOKED_COMMAND = /\b(?:invoke(?:s|d)?|run(?:s|ning)?|use(?:s|d|ing)?)\s+(?:the\s+)?(?:command\s+)?[/$][a-z][a-z0-9-]*\b/;
 const IMPERATIVE_EXTERNAL_EXECUTABLE = /(?:^|\n)\s*(?:(?:[-*+]\s+|\d+[.)]\s+))?(?:open|run|execute|start)\s+(?:it\s*:\s*)?`[a-z][a-z0-9._-]*(?:\s+[^`\r\n]+)?`/i;
+const PROVIDER_ADAPTER_ASSET = /(?:^|\/)(?:agents|adapters)\/(?:openai|anthropic|claude|codex|gemini|google|azure|aws)[^/]*\.(?:ya?ml|json|toml|ini|md)$/i;
 const PORTABLE_DEV_SAFETY = `## Dev server safety
 
 Never start a local development server unless the complete process tree is monitored and capped at 2048 MB RSS or less. A JavaScript heap limit alone is not sufficient because development tools can spawn workers and native processes outside the main runtime.
@@ -98,6 +99,11 @@ function deniedCapability(text, relative) {
   return denied(text, relative) ?? (RUNTIME_BOUND_GUIDANCE.test(text) || BACKTICK_SKILL_INVOCATION.test(text) || LOWERCASE_INVOKED_COMMAND.test(text)
     ? 'Capability contains runtime-specific names, tools, or commands. Convert it to a neutral CAPABILITY.md before transfer.'
     : null);
+}
+
+function deniedCapabilityAsset(text, relative) {
+  if (PROVIDER_ADAPTER_ASSET.test(relative)) return 'Provider-specific capability adapter asset is excluded from universal capture.';
+  return deniedCapability(text, relative);
 }
 
 function utf8(buffer) {
@@ -237,7 +243,7 @@ async function assets(root, capabilityRelative, warnings) {
         const info = await regularUnder(root, relative).catch(() => null);
         if (!info || info.bytes > MAX_FILE_BYTES) { warnings.push({ source: relative, reason: 'Capability asset was skipped because it is unsafe or exceeds the file-size limit.' }); continue; }
         let text; try { text = utf8(await readFile(info.absolute)); } catch { warnings.push({ source: relative, reason: 'Binary or invalid UTF-8 capability asset was skipped.' }); continue; }
-        const blocked = deniedCapability(text, relative);
+        const blocked = deniedCapabilityAsset(text, relative);
         if (blocked) { warnings.push({ source: relative, reason: blocked }); continue; }
         found.push({ path: relative, digest: digest(text), bytes: info.bytes, kind: /(?:^|\/)scripts?(?:\/|$)|\.(?:sh|js|mjs|cjs|py|rb|pl|ps1)$/i.test(relative) ? 'script' : /(?:^|\/)references?(?:\/|$)|\.(?:md|txt|json|ya?ml)$/i.test(relative) ? 'reference' : 'asset', selectable: true, reasons: ['Capability assets are inert; scripts require explicit restricted consent before export.'] });
       }
