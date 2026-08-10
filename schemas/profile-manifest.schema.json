@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://saddle.local/schemas/profile-manifest-1.0.json",
+  "title": "Saddle Portable Profile Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profile", "modules", "lifecycle", "routing", "portability"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "profile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "version", "createdAt", "updatedAt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "modules": { "type": "array", "items": { "$ref": "#/$defs/module" } },
+    "lifecycle": {
+      "type": "object", "additionalProperties": false,
+      "required": ["session.start", "session.checkpoint", "context.before-reset", "context.after-reset", "session.end"],
+      "properties": {
+        "session.start": { "$ref": "#/$defs/lifecycleEvent" }, "session.checkpoint": { "$ref": "#/$defs/lifecycleEvent" }, "context.before-reset": { "$ref": "#/$defs/lifecycleEvent" }, "context.after-reset": { "$ref": "#/$defs/lifecycleEvent" }, "session.end": { "$ref": "#/$defs/lifecycleEvent" },
+        "tool.before": { "$ref": "#/$defs/lifecycleEvent" }, "tool.after": { "$ref": "#/$defs/lifecycleEvent" }, "tool.error": { "$ref": "#/$defs/lifecycleEvent" }, "subagent.start": { "$ref": "#/$defs/lifecycleEvent" }, "subagent.end": { "$ref": "#/$defs/lifecycleEvent" }
+      }
+    },
+    "routing": {
+      "type": "object", "additionalProperties": false, "required": ["strategy", "routes"],
+      "properties": { "strategy": { "const": "minimum-cost-that-clears-gate" }, "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } } }
+    },
+    "portability": {
+      "type": "object", "additionalProperties": false, "required": ["personalContext", "integrations", "scripts", "absolutePaths"],
+      "properties": { "personalContext": { "enum": ["exclude", "prompt"] }, "integrations": { "enum": ["exclude", "declarations-only"] }, "scripts": { "enum": ["exclude", "copy-inert"] }, "absolutePaths": { "const": "alias-only" } }
+    }
+  },
+  "$defs": {
+    "module": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "source", "enabled", "sensitivity", "consent", "digest"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "kind": { "enum": ["operating-policy", "session-continuity", "project-standard", "capability", "personal-context", "integration-declaration"] },
+        "source": { "type": "string", "minLength": 1 },
+        "enabled": { "type": "boolean" },
+        "sensitivity": { "enum": ["standard", "personal", "restricted"] },
+        "consent": { "enum": ["implicit", "explicit"] },
+        "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["path", "digest", "kind"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "kind": { "enum": ["reference", "script", "asset"] }
+            }
+          }
+        }
+      }
+    },
+    "lifecycleEvent": {
+      "type": "object", "additionalProperties": false, "required": ["module", "procedure"],
+      "properties": { "module": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "procedure": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" } }
+    },
+    "route": {
+      "type": "object", "additionalProperties": false, "required": ["id", "taskKinds", "capabilityLevel", "reasoningLevel", "escalationCondition"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "taskKinds": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" } },
+        "capabilityLevel": { "enum": ["low", "medium", "high", "frontier"] }, "reasoningLevel": { "enum": ["low", "medium", "high"] }, "escalationCondition": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

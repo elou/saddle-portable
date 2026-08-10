@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Saddle setup</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to setup</a>
+    <header class="masthead">
+      <div class="wordmark" aria-label="Saddle Portable">
+        <span class="mark" aria-hidden="true">S</span>
+        <span>Saddle</span>
+      </div>
+      <div class="local-status"><span class="status-dot" aria-hidden="true"></span>Local session</div>
+    </header>
+
+    <main id="main" class="shell">
+      <nav class="progress" aria-label="Setup progress">
+        <ol>
+          <li data-step="1" aria-current="step"><span>01</span> Welcome</li>
+          <li data-step="2"><span>02</span> Runtimes</li>
+          <li data-step="3"><span>03</span> Profile</li>
+          <li data-step="4"><span>04</span> Preview</li>
+          <li data-step="5"><span>05</span> Finish</li>
+        </ol>
+      </nav>
+
+      <section class="content" aria-live="polite">
+        <div class="eyebrow" id="step-label">Step 1 of 5</div>
+
+        <article class="step is-active" data-panel="1">
+          <h1>Bring your working methods with you.</h1>
+          <p class="lede">Saddle sets up one neutral operating profile, then generates the files Claude and Codex understand. Everything stays on this computer.</p>
+          <dl class="promise-list">
+            <div><dt>Before any write</dt><dd>You will see the exact files and conflicts.</dd></div>
+            <div><dt>Never transferred</dt><dd>Credentials, transcripts, trust grants, and runtime permission state.</dd></div>
+            <div><dt>After setup</dt><dd>Every applied change remains verifiable and rollbackable.</dd></div>
+          </dl>
+          <div class="actions"><button class="button button-primary" data-next>Scan this computer</button></div>
+        </article>
+
+        <article class="step" data-panel="2" hidden>
+          <h1>Which runtimes should receive the profile?</h1>
+          <p class="lede">Scanning is read-only. Enter the home directory you want to inspect; Saddle will look only for supported runtime folders.</p>
+          <label class="field-label" for="target-root">Computer home directory</label>
+          <div class="field-row">
+            <input id="target-root" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/Users/you">
+            <button id="scan-button" class="button button-secondary">Scan</button>
+          </div>
+          <div id="scan-state" class="result-list" aria-live="polite"></div>
+          <fieldset class="runtime-choice">
+            <legend>Install to</legend>
+            <label><input type="checkbox" name="runtime" value="claude" checked> <span>Claude</span></label>
+            <label><input type="checkbox" name="runtime" value="codex" checked> <span>Codex</span></label>
+          </fieldset>
+          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" data-next disabled id="runtime-next">Continue</button></div>
+        </article>
+
+        <article class="step" data-panel="3" hidden>
+          <h1>Build the neutral profile.</h1>
+          <p class="lede">Start from the authored guidance already on this computer, or use a Saddle profile you transferred here.</p>
+          <div class="mode-switch" role="radiogroup" aria-label="Profile source">
+            <label><input type="radio" name="profile-mode" value="capture" checked> Build from this computer</label>
+            <label><input type="radio" name="profile-mode" value="existing"> Use an existing profile</label>
+          </div>
+
+          <div id="capture-mode">
+            <div class="two-fields">
+              <label><span class="field-label">Profile name</span><input id="profile-name" class="field" value="My Terra" autocomplete="off"></label>
+              <label><span class="field-label">Profile id</span><input id="profile-id" class="field" value="my-terra" autocomplete="off" spellcheck="false"></label>
+            </div>
+            <label class="field-label" for="capture-output">Save the neutral profile to</label>
+            <input id="capture-output" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/Users/you/saddle-profiles/my-terra">
+            <button id="inventory-button" class="button button-secondary inline-action">Inventory authored guidance</button>
+            <div id="inventory-state" class="candidate-list"></div>
+          </div>
+
+          <div id="existing-mode" hidden>
+            <label class="field-label" for="profile-root">Existing profile directory</label>
+            <input id="profile-root" class="field" type="text" autocomplete="off" spellcheck="false" placeholder="/path/to/my-profile">
+          </div>
+          <aside class="notice"><strong>Suggestions are advisory.</strong> Low-risk operating and continuity guidance is preselected. Personal context, scripts, unsafe content, and generated runtime files are never selected automatically.</aside>
+          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" id="preview-button">Create profile and preview</button></div>
+        </article>
+
+        <article class="step" data-panel="4" hidden>
+          <h1>Review every proposed change.</h1>
+          <p class="lede">The digest binds Apply to this exact profile and filesystem state. If either changes, Saddle stops and asks for a new preview.</p>
+          <div id="preview-state" class="preview"></div>
+          <div class="actions"><button class="button button-ghost" data-back>Back</button><button class="button button-primary" id="apply-button" disabled>Apply this preview</button></div>
+        </article>
+
+        <article class="step" data-panel="5" hidden>
+          <div class="success-mark" aria-hidden="true">✓</div>
+          <h1 id="finish-title">Profile installed and verified.</h1>
+          <p class="lede" id="finish-copy">Claude and Codex can now reference the same operating profile. Keep the source bundle; generated runtime files are outputs.</p>
+          <dl class="finish-details" id="finish-details"></dl>
+          <div class="actions"><button class="button button-secondary" id="doctor-button">Run doctor</button><button class="button button-ghost danger" id="rollback-button">Roll back</button></div>
+          <div id="recovery-state" class="notice" hidden></div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

@@ -18,11 +18,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test",
-    "test:unit": "node --test test/unit",
-    "test:integration": "node --test test/integration",
-    "test:privacy": "node --test test/privacy",
-    "test:install": "node --test test/install",
+    "test": "node --test test/unit/*.test.js test/privacy/*.test.js test/integration/*.test.js test/install/*.test.js",
+    "test:unit": "node --test test/unit/*.test.js",
+    "test:integration": "node --test test/integration/*.test.js",
+    "test:privacy": "node --test test/privacy/*.test.js",
+    "test:install": "node --test test/install/*.test.js",
     "pack:check": "npm pack --dry-run"
   },
   "keywords": [
@@ -32,4 +32,3 @@
     "saddle"
   ]
 }
-

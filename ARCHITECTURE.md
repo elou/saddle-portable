@@ -57,13 +57,40 @@ my-profile/
     "updatedAt": "ISO-8601"
   },
   "modules": [],
-  "lifecycle": {},
-  "routing": {},
-  "portability": {}
+  "lifecycle": {
+    "session.start": { "module": "session-continuity", "procedure": "session-start" },
+    "session.checkpoint": { "module": "session-continuity", "procedure": "session-checkpoint" },
+    "context.before-reset": { "module": "session-continuity", "procedure": "before-context-reset" },
+    "context.after-reset": { "module": "session-continuity", "procedure": "after-context-reset" },
+    "session.end": { "module": "session-continuity", "procedure": "session-end" }
+  },
+  "routing": {
+    "strategy": "minimum-cost-that-clears-gate",
+    "routes": []
+  },
+  "portability": {
+    "personalContext": "prompt",
+    "integrations": "declarations-only",
+    "scripts": "copy-inert",
+    "absolutePaths": "alias-only"
+  }
 }
 ```
 
 Unknown fields are rejected in version 1. This keeps typos from silently changing policy.
+
+The five continuity events shown above are required. Each points to an enabled
+`session-continuity` module and a lowercase Markdown heading anchor. Optional tool
+and subagent events may use the same `{ module, procedure }` shape.
+
+Routing is a preference contract rather than a model catalog. Each optional route
+has an id, one or more task kinds, a required capability level (`low`, `medium`,
+`high`, or `frontier`), a reasoning level (`low`, `medium`, or `high`), and a plain-
+language escalation condition. Runtime-specific model names and prices remain local.
+
+Portability choices are explicit and strict. Personal context is `exclude` or
+`prompt` in portable bundles; integrations are `exclude` or `declarations-only`;
+scripts are `exclude` or `copy-inert`; and absolute paths are always `alias-only`.
 
 ### Module contract
 
@@ -77,7 +104,13 @@ Every module descriptor has:
 - `consent`: `implicit` for standard modules or `explicit` for personal and restricted modules; and
 - `digest`: SHA-256 of the source content for provenance and drift detection.
 
-Scripts and references nested under a capability are content, not authority. Import never executes a script. An adapter may copy scripts only after a separate explicit trust decision and must identify them in the preview.
+A capability may also declare an `assets` array. Each asset has a relative `path`,
+SHA-256 `digest`, and `kind` of `reference`, `script`, or `asset`. Asset paths must
+remain beneath the capability directory. A capability containing a script must be
+classified `restricted` and requires explicit consent. Scripts remain inert during
+scan, export, import, projection, and verification.
+
+Scripts and references nested under a capability are content, not authority. Import never executes a script. An adapter may copy a consented script as inert content, must label it `restricted` in the preview, and never converts bundle consent into execution permission on the destination computer.
 
 ## 3. Universal capabilities
 
@@ -230,4 +263,3 @@ The interface binds only to loopback, never opens a remote listener, stores no a
 - No dependency on the user's existing Terra, Harness, Saddle, Claude, or Codex installation.
 - Package contents are restricted by the `files` allowlist and inspected in tests.
 - The repository remains unmerged until clean-profile, privacy, rollback, and packed-install gates pass.
-
