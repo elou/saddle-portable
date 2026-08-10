@@ -13,6 +13,7 @@ const CONFIG_FIELD = /(?:^|\n)\s*(?:url|command|args)\s*[:=]/im;
 const RUNTIME_BOUND_GUIDANCE = /\b(?:Anthropic|Claude(?: Code)?|Codex|OpenAI|ChatGPT|Gemini|Haiku|Sonnet|Opus|GPT(?:-[A-Za-z0-9.]+)?)\b|\b(?:Agent|Task) tool\b|(?:^|[\s'"`])\/(?:clear|compact|resume|branch|exit-check|kickoff|land|de-slop|voice-check)\b|`\/[a-z][a-z0-9-]*(?:\s+\[[^\]\r\n]+\])?`|(?:^|\n)\s*\/[a-z][a-z0-9-]*(?=\s|$)/im;
 const BACKTICK_SKILL_INVOCATION = /`\$[a-z][a-z0-9-]*`/;
 const LOWERCASE_INVOKED_COMMAND = /\b(?:invoke(?:s|d)?|run(?:s|ning)?|use(?:s|d|ing)?)\s+(?:the\s+)?(?:command\s+)?[/$][a-z][a-z0-9-]*\b/;
+const IMPERATIVE_EXTERNAL_EXECUTABLE = /(?:^|\n)\s*(?:open|run|execute|start)\s+(?:it\s*:\s*)?`[a-z][a-z0-9._-]*(?:\s+[^`\r\n]+)?`/i;
 const PORTABLE_DEV_SAFETY = `## Dev server safety
 
 Never start a local development server unless the complete process tree is monitored and capped at 2048 MB RSS or less. A JavaScript heap limit alone is not sufficient because development tools can spawn workers and native processes outside the main runtime.
@@ -85,9 +86,12 @@ function denied(text, relative, heading = '') {
 }
 
 function deniedPortableGuidance(text, relative, heading = '') {
-  return denied(text, relative, heading) ?? (RUNTIME_BOUND_GUIDANCE.test(text) || BACKTICK_SKILL_INVOCATION.test(text) || LOWERCASE_INVOKED_COMMAND.test(text)
+  const base = denied(text, relative, heading);
+  if (base) return base;
+  if (IMPERATIVE_EXTERNAL_EXECUTABLE.test(text)) return 'Guidance depends on an undeclared external executable and needs attention before it can become a universal foundation.';
+  return RUNTIME_BOUND_GUIDANCE.test(text) || BACKTICK_SKILL_INVOCATION.test(text) || LOWERCASE_INVOKED_COMMAND.test(text)
     ? 'Guidance contains runtime-specific names, tools, or commands and has no safe portable transform.'
-    : null);
+    : null;
 }
 
 function deniedCapability(text, relative) {
